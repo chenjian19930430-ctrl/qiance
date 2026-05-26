@@ -1,0 +1,21 @@
+'use client';
+
+import { DollarSign } from 'lucide-react';
+
+export default function ProfitAnalysisPage() {
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">AI利润分析</h1>
+        <p className="text-muted-foreground text-sm mt-1">利润来源追踪，优化盈利结构</p>
+      </div>
+      <div className="bg-white rounded-xl border border-border p-8">
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <DollarSign size={48} className="mb-4 opacity-30" />
+          <p className="text-lg font-medium mb-1">利润分析</p>
+          <p className="text-sm">功能开发中...敬请期待</p>
+        </div>
+      </div>
+    </div>
+  );
+}
