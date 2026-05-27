@@ -1,9 +1,29 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TrendingUp, TrendingDown, ShoppingCart, DollarSign, Store, Users, Eye, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  TrendingUp,
+  TrendingDown,
+  ShoppingCart,
+  DollarSign,
+  Store,
+  Users,
+  Eye,
+  Loader2,
+  Sparkles,
+  Send,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  ArrowRight,
+  Zap,
+  BarChart3,
+} from "lucide-react"
 import ReactECharts from "echarts-for-react"
 
 // ====== 类型定义 ======
@@ -95,10 +115,52 @@ function EmptyState({ message }: { message?: string }) {
 }
 
 // ====== 主页面 ======
+const presetQuestions = [
+  "帮我分析最近30天的销售趋势和核心变化",
+  "各渠道营收对比及优化建议",
+  "当前库存风险和补货建议",
+  "本月经营亮点与改进方向",
+]
+
+const alertCards = [
+  {
+    title: "库存预警",
+    description: "3个SKU库存低于安全线，建议尽快补货",
+    icon: AlertTriangle,
+    color: "text-yellow-600",
+    bg: "bg-yellow-50 dark:bg-yellow-950",
+    border: "border-yellow-200 dark:border-yellow-800",
+    action: "查看库存详情",
+    link: "/inventory/overview",
+  },
+  {
+    title: "订单异常",
+    description: "2笔订单超过48小时未发货，请及时处理",
+    icon: AlertCircle,
+    color: "text-red-600",
+    bg: "bg-red-50 dark:bg-red-950",
+    border: "border-red-200 dark:border-red-800",
+    action: "查看订单",
+    link: "/order/list",
+  },
+  {
+    title: "数据更新",
+    description: "抖店订单数据已同步，新增23笔订单",
+    icon: Info,
+    color: "text-blue-600",
+    bg: "bg-blue-50 dark:bg-blue-950",
+    border: "border-blue-200 dark:border-blue-800",
+    action: "查看同步记录",
+    link: "/ai/board",
+  },
+]
+
 export default function DashboardPage() {
+  const router = useRouter()
   const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deepInput, setDeepInput] = useState("")
 
   useEffect(() => {
     fetch("/api/dashboard/overview")
@@ -115,6 +177,15 @@ export default function DashboardPage() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  function handleDeepSend() {
+    if (!deepInput.trim()) return
+    router.push(`/ai/chat?q=${encodeURIComponent(deepInput.trim())}`)
+  }
+
+  function handlePreset(q: string) {
+    router.push(`/ai/chat?q=${encodeURIComponent(q)}`)
+  }
 
   if (loading) return <LoadingSkeleton />
 
@@ -270,6 +341,70 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-2xl font-bold">综合看板</h2>
         <p className="text-sm text-muted-foreground mt-1">数据分析与经营总览</p>
+      </div>
+
+      {/* 深度思考输入框（对标八爪鱼） */}
+      <Card className="bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5 border-blue-200/50 dark:border-blue-800/50">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-5 w-5 text-blue-500" />
+            <span className="text-sm font-medium">深度思考</span>
+            <span className="text-xs text-muted-foreground">向AI询问任何经营问题，获取数据驱动的洞察</span>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="输入问题，AI将自动查询数据并分析..."
+              value={deepInput}
+              onChange={(e) => setDeepInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleDeepSend()}
+              className="flex-1"
+            />
+            <Button onClick={handleDeepSend} disabled={!deepInput.trim()}>
+              <Send className="h-4 w-4 mr-2" />
+              分析
+            </Button>
+          </div>
+          <div className="flex gap-2 mt-3 flex-wrap">
+            {presetQuestions.map((q) => (
+              <Button
+                key={q}
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => handlePreset(q)}
+              >
+                <Zap className="h-3 w-3 mr-1" />
+                {q}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 数据预警卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {alertCards.map((alert) => (
+          <Card key={alert.title} className={`${alert.bg} ${alert.border} border`}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <alert.icon className={`h-5 w-5 ${alert.color} shrink-0 mt-0.5`} />
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium">{alert.title}</h4>
+                  <p className="text-xs text-muted-foreground mt-1">{alert.description}</p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 mt-2 text-xs"
+                    onClick={() => router.push(alert.link)}
+                  >
+                    {alert.action}
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* 核心指标 */}
