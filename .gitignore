@@ -34,3 +34,7 @@ next-env.d.ts
 
 # prisma
 prisma/migrations/
+
+# Peekaboo screenshots
+public/peekaboo-captures/*
+!public/peekaboo-captures/.gitkeep

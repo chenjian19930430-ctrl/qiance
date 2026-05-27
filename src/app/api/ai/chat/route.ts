@@ -53,6 +53,11 @@ const PAGE_CONTEXT_MAP: Record<string, { label: string; tools: string[]; prompt:
     tools: ["querySales", "queryTopProducts", "queryOrderStats", "queryInventoryAlerts", "queryShops"],
     prompt: "用户正在使用AI深度对话功能，可以进行复杂的数据查询和分析。",
   },
+  "/ai/peekaboo": {
+    label: "Peekaboo浏览器控制",
+    tools: ["peekaboo_capture", "peekaboo_see", "peekaboo_click", "peekaboo_type", "peekaboo_open_url", "peekaboo_press", "peekaboo_hotkey", "peekaboo_scroll"],
+    prompt: "用户当前在Peekaboo浏览器控制页面，可以使用截图看页面、点击、输入等浏览器自动化操作。",
+  },
   "/order/list": {
     label: "原始订单",
     tools: ["queryOrderStats", "querySales"],

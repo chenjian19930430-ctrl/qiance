@@ -6,6 +6,7 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { PeekabooClient } from "@/lib/peekaboo/client"
 
 // ── 通用类型 ──────────────────────────────────────
 
@@ -346,6 +347,166 @@ export const agentTools: ToolDefinition[] = [
   },
 ]
 
+// ── Peekaboo 浏览器自动化工具注册表 ──────────────
+
+/** Peekaboo 工具定义（返回类型不限） */
+export interface PeekabooToolDefinition {
+  name: string
+  description: string
+  parameters: {
+    name: string
+    type: "number" | "string" | "boolean"
+    description: string
+    required?: boolean
+  }[]
+  handler: (...args: unknown[]) => Promise<unknown>
+}
+
+/**
+ * Peekaboo 工具注册表
+ * 这些工具不返回 Dataset（数据库查询格式），而是返回浏览器自动化操作结果
+ */
+export const peekabooTools: PeekabooToolDefinition[] = [
+  {
+    name: "peekaboo_capture",
+    description: "截图当前屏幕，获取浏览器页面视觉内容。返回截图文件路径。",
+    parameters: [],
+    handler: async () => peekabooCapture(),
+  },
+  {
+    name: "peekaboo_see",
+    description: "看当前屏幕并分析页面内容，返回 UI 元素结构（带可点击元素ID）和 AI 分析。适用于需要理解页面布局或查找操作目标。",
+    parameters: [
+      { name: "analyze", type: "string", description: "可选：让 AI 分析页面特定内容，如'描述当前页面''找到搜索框'", required: false },
+    ],
+    handler: async (analyze: unknown) => peekabooSee(typeof analyze === "string" ? analyze : undefined),
+  },
+  {
+    name: "peekaboo_click",
+    description: "点击页面上的某个元素。target 可以是 see 命令返回的元素 ID（如 B3、T2）或坐标（如 '100,200'）。",
+    parameters: [
+      { name: "target", type: "string", description: "元素 ID（如 B3）或坐标（如 '100,200'）", required: true },
+    ],
+    handler: async (target: unknown) => peekabooClick(typeof target === "string" ? target : ""),
+  },
+  {
+    name: "peekaboo_type",
+    description: "在输入框中输入文字。需要先点击目标输入框。",
+    parameters: [
+      { name: "text", type: "string", description: "要输入的文字内容", required: true },
+    ],
+    handler: async (text: unknown) => peekabooType(typeof text === "string" ? text : ""),
+  },
+  {
+    name: "peekaboo_open_url",
+    description: "在默认浏览器中打开指定 URL。",
+    parameters: [
+      { name: "url", type: "string", description: "要打开的 URL 地址", required: true },
+    ],
+    handler: async (url: unknown) => peekabooOpenUrl(typeof url === "string" ? url : ""),
+  },
+  {
+    name: "peekaboo_press",
+    description: "在键盘上按一个按键。适用于特殊键如 return, tab, escape, delete, arrow_up 等。",
+    parameters: [
+      { name: "key", type: "string", description: "按键名称：return, tab, escape, delete, up, down, left, right, space 等", required: true },
+    ],
+    handler: async (key: unknown) => peekabooPress(typeof key === "string" ? key : ""),
+  },
+  {
+    name: "peekaboo_hotkey",
+    description: "执行键盘快捷键。如 'cmd,c'（复制）、'cmd,v'（粘贴）、'cmd,shift,t'（恢复标签页）。",
+    parameters: [
+      { name: "keys", type: "string", description: "快捷键组合，如 'cmd,c' 或 'cmd+shift+t'", required: true },
+    ],
+    handler: async (keys: unknown) => peekabooHotkey(typeof keys === "string" ? keys : ""),
+  },
+  {
+    name: "peekaboo_scroll",
+    description: "在页面上滚动。方向：up, down, left, right。",
+    parameters: [
+      { name: "direction", type: "string", description: "滚动方向：up, down, left, right", required: true },
+    ],
+    handler: async (direction: unknown) => peekabooScroll(typeof direction === "string" ? direction : "down"),
+  },
+]
+
+// ── Peekaboo 浏览器自动化工具 ──────────────────────
+
+/**
+ * Peekaboo 截图 — 获取当前屏幕内容
+ */
+export async function peekabooCapture(): Promise<{ path: string }> {
+  const path = await PeekabooClient.capture()
+  return { path }
+}
+
+/**
+ * Peekaboo 看屏幕并分析 — 视觉理解当前页面
+ */
+export async function peekabooSee(analyze?: string): Promise<{
+  annotatedPath: string
+  snapshot: string
+  analysis?: string
+}> {
+  return await PeekabooClient.see(analyze)
+}
+
+/**
+ * Peekaboo 点击元素
+ */
+export async function peekabooClick(target: string): Promise<{ success: true }> {
+  await PeekabooClient.click(target)
+  return { success: true }
+}
+
+/**
+ * Peekaboo 输入文字
+ */
+export async function peekabooType(text: string): Promise<{ success: true }> {
+  await PeekabooClient.type(text)
+  return { success: true }
+}
+
+/**
+ * Peekaboo 打开 URL
+ */
+export async function peekabooOpenUrl(url: string): Promise<{ success: true }> {
+  await PeekabooClient.openUrl(url)
+  return { success: true }
+}
+
+/**
+ * Peekaboo 键盘操作
+ */
+export async function peekabooPress(key: string): Promise<{ success: true }> {
+  await PeekabooClient.press(key)
+  return { success: true }
+}
+
+/**
+ * Peekaboo 快捷键操作
+ */
+export async function peekabooHotkey(keys: string): Promise<{ success: true }> {
+  await PeekabooClient.hotkey(keys)
+  return { success: true }
+}
+
+/**
+ * Peekaboo 滚动
+ */
+export async function peekabooScroll(direction: string): Promise<{ success: true }> {
+  await PeekabooClient.scroll(direction)
+  return { success: true }
+}
+
+/**
+ * Peekaboo 状态检查
+ */
+export async function peekabooStatus(): Promise<{ available: boolean; permissions: string }> {
+  return await PeekabooClient.checkStatus()
+}
+
 // ── 智能数据查询（自动识别用户意图）────────────────
 
 /**
@@ -487,6 +648,27 @@ export async function executeTool(
   }
 
   // 提取参数值按顺序传递
+  const args = tool.parameters.map((p) => params[p.name])
+  return await tool.handler(...args)
+}
+
+/**
+ * Peekaboo 工具名列表
+ */
+export const peekabooToolNames = peekabooTools.map((t) => t.name)
+
+/**
+ * 根据 Peekaboo 工具名称执行
+ */
+export async function executePeekabooTool(
+  toolName: string,
+  params: Record<string, unknown> = {},
+): Promise<unknown> {
+  const tool = peekabooTools.find((t) => t.name === toolName)
+  if (!tool) {
+    throw new Error(`未知 Peekaboo 工具: ${toolName}`)
+  }
+
   const args = tool.parameters.map((p) => params[p.name])
   return await tool.handler(...args)
 }

@@ -29,6 +29,7 @@ import {
   BookOpen,
   Search,
   Globe,
+  Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -49,6 +50,7 @@ const menuGroups = [
       { href: "/ai/board", label: "AI全域看板", icon: LayoutDashboard },
       { href: "/agents", label: "全部智能体(15个)", icon: Bot },
       { href: "/chat", label: "AI对话(新版)", icon: MessageSquare },
+      { href: "/ai/peekaboo", label: "Peekaboo 浏览器控制", icon: Eye },
     ],
   },
   {
