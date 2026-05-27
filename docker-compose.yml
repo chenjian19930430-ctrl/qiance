@@ -1,6 +1,9 @@
 version: "3.8"
 
 services:
+  # ============================================================
+  # PostgreSQL 数据库
+  # ============================================================
   postgres:
     image: postgres:16-alpine
     container_name: qiance-postgres
@@ -9,10 +12,55 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: qiance
     volumes:
       - qiance-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # 千策 Next.js Web 应用
+  # ============================================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qiance-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/qiance?schema=public"
+      AUTH_SECRET: ${AUTH_SECRET:-qiance-auth-secret-prod-2026}
+      AUTH_URL: "http://localhost:3000"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-your-openai-api-key}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-sk-your-minimax-api-key}
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      NEXT_PUBLIC_WS_URL: "ws://localhost:3001"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ============================================================
+  # WebSocket 服务（AI 对话实时推送）
+  # ============================================================
+  ws:
+    build:
+      context: .
+      dockerfile: Dockerfile.ws
+    container_name: qiance-ws
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+    depends_on:
+      - web
 
 volumes:
   qiance-pgdata:

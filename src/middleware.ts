@@ -6,11 +6,20 @@ export default auth((req) => {
   const pathname = nextUrl.pathname
 
   // 公开路由：登录/注册页不需要认证
-  const publicRoutes = ["/login", "/register", "/api/auth"]
+  const publicRoutes = ["/login", "/register", "/api/auth", "/api/ai", "/_next"]
   const isPublic = publicRoutes.some((route) => pathname.startsWith(route))
 
-  // 未登录访问非公开路由 → 重定向到登录
+  // 如果是 API 路由，返回 JSON 而非重定向
+  const isApiRoute = pathname.startsWith("/api")
+
+  // 未登录访问非公开路由
   if (!session?.user && !isPublic) {
+    if (isApiRoute) {
+      return NextResponse.json(
+        { code: 401, data: null, message: "未登录" },
+        { status: 401 }
+      )
+    }
     const loginUrl = new URL("/login", req.url)
     return NextResponse.redirect(loginUrl)
   }
