@@ -83,14 +83,11 @@ const menuGroups = [
     ],
   },
   {
-    label: "库存管理",
-    items: [
-      { href: "/inventory/overview", label: "库存概览", icon: Warehouse },
-    ],
-  },
-  {
     label: "供应链",
     items: [
+      { href: "/purchase/list", label: "采购管理", icon: ShoppingCart },
+      { href: "/warehouse", label: "仓库管理", icon: Warehouse },
+      { href: "/inventory/overview", label: "库存概览", icon: Package },
       { href: "/supplier", label: "供应商管理", icon: Truck },
       { href: "/contract", label: "合同管理", icon: FileText },
     ],
