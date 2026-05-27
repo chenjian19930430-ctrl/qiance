@@ -35,6 +35,36 @@ export async function GET(req: Request) {
   }
 }
 
+// PUT /api/goods/sku
+export async function PUT(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    const body = await req.json()
+    const sku = await prisma.sku.update({ where: { id }, data: body })
+    return NextResponse.json({ code: 200, data: sku, message: "更新成功" })
+  } catch (error) {
+    return NextResponse.json({ code: 500, data: null, message: "更新失败" }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    await prisma.sku.delete({ where: { id } })
+    return NextResponse.json({ code: 200, data: null, message: "删除成功" })
+  } catch (error) {
+    return NextResponse.json({ code: 500, data: null, message: "删除失败" }, { status: 500 })
+  }
+}
+
 // POST /api/goods/sku
 export async function POST(req: Request) {
   try {

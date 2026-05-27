@@ -233,15 +233,3 @@ function AIChatContent() {
     </div>
   )
 }
-
-export default function AIChatPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <div className="text-muted-foreground">加载中...</div>
-      </div>
-    }>
-      <AIChatContent />
-    </Suspense>
-  )
-}

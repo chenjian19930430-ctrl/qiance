@@ -35,6 +35,49 @@ export async function GET(req: Request) {
   }
 }
 
+// PUT /api/company - 更新公司
+export async function PUT(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    const body = await req.json()
+    const company = await prisma.company.update({
+      where: { id },
+      data: {
+        name: body.name,
+        code: body.code,
+        address: body.address,
+        phone: body.phone,
+        contact: body.contact,
+        status: body.status,
+      },
+    })
+    return NextResponse.json({ code: 200, data: company, message: "更新成功" })
+  } catch (error) {
+    console.error("Company update error:", error)
+    return NextResponse.json({ code: 500, data: null, message: "更新失败" }, { status: 500 })
+  }
+}
+
+// DELETE /api/company - 删除公司
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    await prisma.company.delete({ where: { id } })
+    return NextResponse.json({ code: 200, data: null, message: "删除成功" })
+  } catch (error) {
+    console.error("Company delete error:", error)
+    return NextResponse.json({ code: 500, data: null, message: "删除失败" }, { status: 500 })
+  }
+}
+
 // POST /api/company - 创建公司
 export async function POST(req: Request) {
   try {
