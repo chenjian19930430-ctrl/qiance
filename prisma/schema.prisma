@@ -1,11 +1,3 @@
-// ============================================================
-// 千策（QianCe AI） - Prisma 数据模型
-// ============================================================
-// 数据库：PostgreSQL
-// 生成命令：npx prisma generate
-// 迁移命令：npx prisma migrate dev
-// ============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,79 +7,68 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================
-// 1. 用户、角色、权限（RBAC + 多租户）
-// ============================================================
-
 model Tenant {
-  id        String    @id @default(cuid())
-  name      String
-  code      String    @unique // 租户编码
-  logo      String? // 租户logo
-  status    Int       @default(0) // 0=正常, 1=禁用
-  expireAt  DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  users         User[]
-  roles         Role[]
-  depts         Dept[]
-  posts         Post[]
-  companies     Company[]
-  shops         Shop[]
-  categories    Category[]
-  spus          Spu[]
-  skus          Sku[]
-  orders        Order[]
-  conversations Conversation[]
+  id            String         @id @default(cuid())
+  name          String
+  code          String         @unique
+  logo          String?
+  status        Int            @default(0)
+  expireAt      DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   agents        Agent[]
-  suppliers     Supplier[]
+  categories    Category[]
+  companies     Company[]
   contracts     Contract[]
+  conversations Conversation[]
   dashboards    Dashboard[]
-  // 其他租户级数据
+  depts         Dept[]
+  orders        Order[]
+  posts         Post[]
+  roles         Role[]
+  shops         Shop[]
+  skus          Sku[]
+  spus          Spu[]
+  suppliers     Supplier[]
+  users         User[]
 }
 
 model User {
-  id        String   @id @default(cuid())
-  tenantId  String
-  username  String   @unique
-  password  String // bcrypt hash
-  realName  String
-  phone     String?
-  email     String?
-  avatar    String?
-  status    Int      @default(0) // 0=正常, 1=禁用
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  roles            UserRole[]
-  depts            UserDept[]
-  posts            UserPost[]
+  id               String        @id @default(cuid())
+  tenantId         String
+  username         String        @unique
+  password         String
+  realName         String
+  phone            String?
+  email            String?
+  avatar           String?
+  status           Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   messages         ChatMessage[]
-  // 创建关联
   createdCompanies Company[]     @relation("CompanyCreator")
   createdShops     Shop[]        @relation("ShopCreator")
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  depts            UserDept[]
+  posts            UserPost[]
+  roles            UserRole[]
 
   @@index([tenantId])
 }
 
 model Role {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  code      String   @unique
-  sort      Int      @default(0)
-  status    Int      @default(0)
-  remark    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  users       UserRole[]
+  id          String           @id @default(cuid())
+  tenantId    String
+  name        String
+  code        String           @unique
+  sort        Int              @default(0)
+  status      Int              @default(0)
+  remark      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
   permissions RolePermission[]
+  users       UserRole[]
 
   @@index([tenantId])
 }
@@ -95,58 +76,56 @@ model Role {
 model UserRole {
   userId String
   roleId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
 }
 
 model Permission {
-  id        String   @id @default(cuid())
-  name      String // 权限名称
-  code      String   @unique // 权限编码：system:user:list
-  type      Int      @default(0) // 0=目录, 1=菜单, 2=按钮
+  id        String           @id @default(cuid())
+  name      String
+  code      String           @unique
+  type      Int              @default(0)
   parentId  String?
   path      String?
   component String?
   icon      String?
-  sort      Int      @default(0)
-  visible   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  parent   Permission?      @relation("PermissionTree", fields: [parentId], references: [id])
-  children Permission[]     @relation("PermissionTree")
-  roles    RolePermission[]
+  sort      Int              @default(0)
+  visible   Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  parent    Permission?      @relation("PermissionTree", fields: [parentId], references: [id])
+  children  Permission[]     @relation("PermissionTree")
+  roles     RolePermission[]
 }
 
 model RolePermission {
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
 
 model Dept {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   tenantId  String
   name      String
-  code      String // 部门编码
+  code      String
   parentId  String?
-  sort      Int      @default(0)
-  status    Int      @default(0)
+  sort      Int        @default(0)
+  status    Int        @default(0)
   leader    String?
   phone     String?
   email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant   Tenant     @relation(fields: [tenantId], references: [id])
-  parent   Dept?      @relation("DeptTree", fields: [parentId], references: [id])
-  children Dept[]     @relation("DeptTree")
-  users    UserDept[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  parent    Dept?      @relation("DeptTree", fields: [parentId], references: [id])
+  children  Dept[]     @relation("DeptTree")
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  users     UserDept[]
 
   @@index([tenantId])
 }
@@ -154,25 +133,24 @@ model Dept {
 model UserDept {
   userId String
   deptId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   dept   Dept   @relation(fields: [deptId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, deptId])
 }
 
 model Post {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   tenantId  String
   name      String
-  code      String   @unique
-  sort      Int      @default(0)
-  status    Int      @default(0)
+  code      String     @unique
+  sort      Int        @default(0)
+  status    Int        @default(0)
   remark    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant     @relation(fields: [tenantId], references: [id])
-  users  UserPost[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  users     UserPost[]
 
   @@index([tenantId])
 }
@@ -180,21 +158,17 @@ model Post {
 model UserPost {
   userId String
   postId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, postId])
 }
-
-// ============================================================
-// 2. 公司/店铺/商品/SPU/SKU
-// ============================================================
 
 model Company {
   id        String   @id @default(cuid())
   tenantId  String
   name      String
-  code      String // 公司编码
+  code      String
   address   String?
   phone     String?
   email     String?
@@ -204,82 +178,75 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   creatorId String?
-
-  tenant  Tenant @relation(fields: [tenantId], references: [id])
-  creator User?  @relation("CompanyCreator", fields: [creatorId], references: [id])
-
-  shops  Shop[]
-  spus   Spu[]
-  orders Order[]
+  creator   User?    @relation("CompanyCreator", fields: [creatorId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  orders    Order[]
+  shops     Shop[]
+  spus      Spu[]
 
   @@index([tenantId])
 }
 
 model Shop {
-  id        String   @id @default(cuid())
-  tenantId  String
-  companyId String
-  name      String
-  code      String // 店铺编码
-  channel   String? // 渠道：京东/淘宝/拼多多/抖音
-  url       String?
-  status    Int      @default(0)
-  remark    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  creatorId String?
-
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  company Company @relation(fields: [companyId], references: [id])
-  creator User?   @relation("ShopCreator", fields: [creatorId], references: [id])
-
+  id           String         @id @default(cuid())
+  tenantId     String
+  companyId    String
+  name         String
+  code         String
+  channel      String?
+  url          String?
+  status       Int            @default(0)
+  remark       String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  creatorId    String?
   orderItems   OrderItem[]
+  company      Company        @relation(fields: [companyId], references: [id])
+  creator      User?          @relation("ShopCreator", fields: [creatorId], references: [id])
+  tenant       Tenant         @relation(fields: [tenantId], references: [id])
   skus         Sku[]
-  supplierShop SupplierShop[]
   spus         Spu[]
+  supplierShop SupplierShop[]
 
   @@index([tenantId])
   @@index([companyId])
 }
 
 model Category {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   tenantId  String
   name      String
   parentId  String?
-  sort      Int      @default(0)
-  status    Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant   Tenant     @relation(fields: [tenantId], references: [id])
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  spus     Spu[]
+  sort      Int        @default(0)
+  status    Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  spus      Spu[]
 
   @@index([tenantId])
 }
 
 model Spu {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   tenantId    String
   companyId   String
   shopId      String?
   categoryId  String?
-  name        String // SPU名称
-  code        String // SPU编码
+  name        String
+  code        String
   brand       String?
   description String?
-  status      Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  company  Company   @relation(fields: [companyId], references: [id])
-  shop     Shop?     @relation(fields: [shopId], references: [id])
-  category Category? @relation(fields: [categoryId], references: [id])
-
-  skus Sku[]
+  status      Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  skus        Sku[]
+  category    Category? @relation(fields: [categoryId], references: [id])
+  company     Company   @relation(fields: [companyId], references: [id])
+  shop        Shop?     @relation(fields: [shopId], references: [id])
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([companyId])
@@ -287,60 +254,52 @@ model Spu {
 }
 
 model Sku {
-  id        String   @id @default(cuid())
-  tenantId  String
-  spuId     String
-  shopId    String?
-  name      String // SKU名称
-  code      String // SKU编码
-  salePrice Decimal  @default(0) @db.Decimal(10, 2)
-  costPrice Decimal  @default(0) @db.Decimal(10, 2)
-  stock     Int      @default(0)
-  status    Int      @default(0) // 0=上架, 1=下架
-  spec      Json? // SKU规格：{颜色: 红色, 尺寸: XL}
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  spu    Spu    @relation(fields: [spuId], references: [id])
-  shop   Shop?  @relation(fields: [shopId], references: [id])
-
+  id         String      @id @default(cuid())
+  tenantId   String
+  spuId      String
+  shopId     String?
+  name       String
+  code       String
+  salePrice  Decimal     @default(0) @db.Decimal(10, 2)
+  costPrice  Decimal     @default(0) @db.Decimal(10, 2)
+  stock      Int         @default(0)
+  status     Int         @default(0)
+  spec       Json?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   orderItems OrderItem[]
+  shop       Shop?       @relation(fields: [shopId], references: [id])
+  spu        Spu         @relation(fields: [spuId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([spuId])
   @@index([shopId])
 }
 
-// ============================================================
-// 3. 订单模型
-// ============================================================
-
 model Order {
-  id             String    @id @default(cuid())
+  id             String      @id @default(cuid())
   tenantId       String
   companyId      String
-  orderNo        String    @unique // 原始订单号
-  type           Int       @default(0) // 0=原始订单, 1=结算订单, 2=售后订单
-  channel        String? // 渠道：京东/淘宝/抖音
-  orderStatus    Int       @default(0)
-  totalAmount    Decimal   @default(0) @db.Decimal(10, 2)
-  discountAmount Decimal   @default(0) @db.Decimal(10, 2)
-  realAmount     Decimal   @default(0) @db.Decimal(10, 2)
-  platformFee    Decimal   @default(0) @db.Decimal(10, 2)
-  logisticsFee   Decimal   @default(0) @db.Decimal(10, 2)
+  orderNo        String      @unique
+  type           Int         @default(0)
+  channel        String?
+  orderStatus    Int         @default(0)
+  totalAmount    Decimal     @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal     @default(0) @db.Decimal(10, 2)
+  realAmount     Decimal     @default(0) @db.Decimal(10, 2)
+  platformFee    Decimal     @default(0) @db.Decimal(10, 2)
+  logisticsFee   Decimal     @default(0) @db.Decimal(10, 2)
   buyerName      String?
   buyerPhone     String?
   buyerAddress   String?
   remark         String?
   orderTime      DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  company Company @relation(fields: [companyId], references: [id])
-
-  items OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  company        Company     @relation(fields: [companyId], references: [id])
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  items          OrderItem[]
 
   @@index([tenantId])
   @@index([companyId])
@@ -359,51 +318,43 @@ model OrderItem {
   unitPrice Decimal  @default(0) @db.Decimal(10, 2)
   subtotal  Decimal  @default(0) @db.Decimal(10, 2)
   createdAt DateTime @default(now())
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  shop  Shop? @relation(fields: [shopId], references: [id])
-  sku   Sku?  @relation(fields: [skuId], references: [id])
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shop      Shop?    @relation(fields: [shopId], references: [id])
+  sku       Sku?     @relation(fields: [skuId], references: [id])
 
   @@index([orderId])
   @@index([shopId])
   @@index([skuId])
 }
 
-// ============================================================
-// 4. AI对话历史
-// ============================================================
-
 model Conversation {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   tenantId  String
   userId    String
-  title     String   @default("新对话")
-  agentId   String? // 关联的智能体
-  status    Int      @default(0) // 0=进行中, 1=已结束
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  messages ChatMessage[]
+  title     String        @default("新对话")
+  agentId   String?
+  status    Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([userId])
 }
 
 model ChatMessage {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
-  role           String // user / assistant / system
-  content        String   @db.Text
-  agentId        String? // 由哪个智能体回复
-  tokens         Int? // token消耗
-  metadata       Json? // 额外数据（图表配置等）
-  createdAt      DateTime @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id])
-  userId       String
+  role           String
+  content        String
+  agentId        String?
+  tokens         Int?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  userId         String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
 
   @@index([conversationId])
   @@index([createdAt])
@@ -412,45 +363,38 @@ model ChatMessage {
 model Agent {
   id          String   @id @default(cuid())
   tenantId    String?
-  name        String // 智能体名称
-  code        String   @unique // 英文标识
-  group       String // 分组：finance/growth/product/general
+  name        String
+  code        String   @unique
+  group       String
   description String?
-  prompt      String   @db.Text // 系统提示词模板
+  prompt      String
   icon        String?
   sort        Int      @default(0)
   status      Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([code])
   @@index([group])
 }
 
-// ============================================================
-// 5. 供应商与合同
-// ============================================================
-
 model Supplier {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   tenantId  String
   name      String
   code      String
   contact   String?
   phone     String?
   address   String?
-  status    Int      @default(0)
+  status    Int            @default(0)
   remark    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  shops     SupplierShop[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
   contracts Contract[]
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  shops     SupplierShop[]
 
   @@index([tenantId])
 }
@@ -458,8 +402,8 @@ model Supplier {
 model SupplierShop {
   supplierId String
   shopId     String
-  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@id([supplierId, shopId])
 }
@@ -470,38 +414,32 @@ model Contract {
   supplierId String
   contractNo String    @unique
   name       String
-  type       Int       @default(0) // 0=采购, 1=代销, 2=服务
+  type       Int       @default(0)
   amount     Decimal   @default(0) @db.Decimal(12, 2)
   startDate  DateTime?
   endDate    DateTime?
   status     Int       @default(0)
-  file       String? // 合同文件URL
+  file       String?
   remark     String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  supplier Supplier @relation(fields: [supplierId], references: [id])
+  supplier   Supplier  @relation(fields: [supplierId], references: [id])
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([supplierId])
 }
-
-// ============================================================
-// 6. 数据看板/Dashboard（可选，用于用户自定义Dashboard）
-// ============================================================
 
 model Dashboard {
   id        String   @id @default(cuid())
   tenantId  String
   userId    String
   name      String
-  config    Json? // Dashboard配置JSON
+  config    Json?
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([userId])

@@ -1,11 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DataTable } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
-import { Download, CheckCircle2, AlertCircle } from "lucide-react"
+import { Download, CheckCircle2, AlertCircle, DollarSign, ShoppingCart, TrendingUp } from "lucide-react"
+import { api } from "@/lib/api"
+import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
+import { toast } from "sonner"
 
 interface SettlementRow {
   id: string
@@ -19,24 +23,46 @@ interface SettlementRow {
   status: "settled" | "pending" | "failed"
 }
 
-const fakeData: SettlementRow[] = [
-  { id: "1", batchNo: "SET-20260527-001", period: "05/21-05/27", platform: "抖音", orderCount: 142, totalAmount: 85600, commission: 4280, netAmount: 81320, status: "settled" },
-  { id: "2", batchNo: "SET-20260527-002", period: "05/21-05/27", platform: "快手", orderCount: 78, totalAmount: 42300, commission: 2115, netAmount: 40185, status: "pending" },
-  { id: "3", batchNo: "SET-20260527-003", period: "05/21-05/27", platform: "视频号", orderCount: 35, totalAmount: 21500, commission: 1075, netAmount: 20425, status: "settled" },
-  { id: "4", batchNo: "SET-20260527-004", period: "05/21-05/27", platform: "淘宝", orderCount: 22, totalAmount: 12800, commission: 640, netAmount: 12160, status: "pending" },
-  { id: "5", batchNo: "SET-20260520-001", period: "05/14-05/20", platform: "抖音", orderCount: 131, totalAmount: 79200, commission: 3960, netAmount: 75240, status: "settled" },
-  { id: "6", batchNo: "SET-20260520-002", period: "05/14-05/20", platform: "快手", orderCount: 65, totalAmount: 38700, commission: 1935, netAmount: 36765, status: "settled" },
-  { id: "7", batchNo: "SET-20260520-003", period: "05/14-05/20", platform: "视频号", orderCount: 30, totalAmount: 18900, commission: 945, netAmount: 17955, status: "failed" },
-]
+interface SettlementSummary {
+  totalOrders: number
+  totalAmount: number | string
+  realAmount: number | string
+  platformFees: number | string
+  logisticsFees: number | string
+  netAmount: number
+  channelStats: Array<{
+    channel: string | null
+    _sum: { realAmount: number | null; platformFee: number | null }
+    _count: { id: number }
+  }>
+}
+
+interface SettlementResponse {
+  list: SettlementRow[]
+  total: number
+  summary: SettlementSummary
+}
 
 const columns: ColumnDef<SettlementRow>[] = [
   { header: "结算批次", accessorKey: "batchNo" },
   { header: "结算周期", accessorKey: "period" },
   { header: "平台", accessorKey: "platform" },
   { header: "订单数", accessorKey: "orderCount" },
-  { header: "总金额", accessorKey: "totalAmount", cell: ({ row }) => `¥${row.original.totalAmount.toLocaleString()}` },
-  { header: "佣金", accessorKey: "commission", cell: ({ row }) => `¥${row.original.commission.toLocaleString()}` },
-  { header: "净结算", accessorKey: "netAmount", cell: ({ row }) => `¥${row.original.netAmount.toLocaleString()}` },
+  {
+    header: "总金额",
+    accessorKey: "totalAmount",
+    cell: ({ row }) => `¥${row.original.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  },
+  {
+    header: "佣金",
+    accessorKey: "commission",
+    cell: ({ row }) => `¥${row.original.commission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  },
+  {
+    header: "净结算",
+    accessorKey: "netAmount",
+    cell: ({ row }) => `¥${row.original.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  },
   {
     header: "状态", accessorKey: "status",
     cell: ({ row }) => {
@@ -52,9 +78,38 @@ const columns: ColumnDef<SettlementRow>[] = [
 ]
 
 export default function SettlementPage() {
-  const settled = fakeData.filter(r => r.status === "settled")
-  const settledAmount = settled.reduce((s, r) => s + r.netAmount, 0)
-  const pendingAmt = fakeData.filter(r => r.status === "pending").reduce((s, r) => s + r.netAmount, 0)
+  const [data, setData] = useState<SettlementRow[]>([])
+  const [summary, setSummary] = useState<SettlementSummary | null>(null)
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [searchText, setSearchText] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const result = await api.get<SettlementResponse>("/api/order/settlement", {
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        search: searchText || undefined,
+      })
+      setData(result.list || [])
+      setTotal(result.total || 0)
+      setSummary(result.summary)
+    } catch (e) {
+      toast.error("加载结算数据失败")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const settledAmount = summary?.netAmount || 0
+  const pendingAmt = data.filter(r => r.status === "pending").reduce((s, r) => s + r.netAmount, 0)
 
   return (
     <div className="space-y-6">
@@ -63,17 +118,104 @@ export default function SettlementPage() {
         <Button variant="outline" size="sm"><Download className="h-4 w-4 mr-1" />导出结算单</Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">已结算金额</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-500">¥{(settledAmount / 10000).toFixed(1)}万</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">待结算金额</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-yellow-500">¥{(pendingAmt / 10000).toFixed(1)}万</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">结算批次</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{fakeData.length}</p></CardContent></Card>
+      {/* 汇总卡片 */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm text-muted-foreground">净结算金额</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-500">¥{(settledAmount / 10000).toFixed(1)}万</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              总实收 ¥{Number(summary?.realAmount || 0).toFixed(0)} - 佣金 ¥{Number(summary?.platformFees || 0).toFixed(0)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm text-muted-foreground">总订单数</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{summary?.totalOrders || 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">结算范围订单</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm text-muted-foreground">平台佣金</CardTitle>
+            <TrendingUp className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-yellow-500">¥{Number(summary?.platformFees || 0).toFixed(0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              物流费 ¥{Number(summary?.logisticsFees || 0).toFixed(0)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm text-muted-foreground">结算批次</CardTitle>
+            <AlertCircle className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{data.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">按渠道+周自动分组</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <DataTable columns={columns} data={fakeData} total={fakeData.length}
-        page={1} pageSize={50} onPageChange={() => {}} onPageSizeChange={() => {}} searchable={true} searchPlaceholder="搜索批次号/平台..." />
+      {/* 渠道分平台汇总 */}
+      {summary?.channelStats && summary.channelStats.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {summary.channelStats.map((stat, idx) => (
+            <Card key={idx} className="bg-muted/30">
+              <CardContent className="p-3">
+                <p className="text-sm font-medium">{stat.channel || "未知渠道"}</p>
+                <p className="text-lg font-bold mt-1">¥{Number(stat._sum.realAmount || 0).toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">{stat._count.id} 单 / 佣金 ¥{Number(stat._sum.platformFee || 0).toFixed(0)}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* 筛选栏 */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">日期：</label>
+          <input
+            type="date"
+            className="border rounded px-3 py-1.5 text-sm bg-background h-9"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+          <span className="text-muted-foreground">~</span>
+          <input
+            type="date"
+            className="border rounded px-3 py-1.5 text-sm bg-background h-9"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+        <Button size="sm" onClick={loadData}><Search className="h-4 w-4 mr-1" />查询</Button>
+        <Button size="sm" variant="outline" onClick={() => { setStartDate(""); setEndDate(""); setTimeout(loadData, 0) }}>
+          重置
+        </Button>
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={data}
+        total={total}
+        page={1}
+        pageSize={50}
+        onPageChange={() => {}}
+        onPageSizeChange={() => {}}
+        searchable={false}
+        loading={loading}
+      />
     </div>
   )
 }
