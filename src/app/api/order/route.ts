@@ -32,3 +32,18 @@ export async function GET(req: Request) {
     return NextResponse.json({ code: 500, data: null, message: "查询失败" }, { status: 500 })
   }
 }
+
+export async function PUT(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    const body = await req.json()
+    const order = await prisma.order.update({ where: { id }, data: body })
+    return NextResponse.json({ code: 200, data: order, message: "更新成功" })
+  } catch (error) {
+    return NextResponse.json({ code: 500, data: null, message: "更新失败" }, { status: 500 })
+  }
+}

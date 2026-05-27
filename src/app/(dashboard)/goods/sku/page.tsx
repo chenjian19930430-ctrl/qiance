@@ -4,7 +4,7 @@ import { CrudPage } from "@/components/ui/crud-page"
 import { api } from "@/lib/api"
 import type { ColumnDef } from "@tanstack/react-table"
 
-interface Sku {
+interface Sku extends Record<string, unknown> {
   id: string
   name: string
   code: string
