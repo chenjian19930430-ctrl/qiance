@@ -27,6 +27,43 @@ export async function GET(req: Request) {
   }
 }
 
+export async function PUT(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    const body = await req.json()
+    const shop = await prisma.shop.update({
+      where: { id },
+      data: {
+        name: body.name,
+        code: body.code,
+        platform: body.platform,
+        status: body.status,
+      },
+    })
+    return NextResponse.json({ code: 200, data: shop, message: "更新成功" })
+  } catch (error) {
+    return NextResponse.json({ code: 500, data: null, message: "更新失败" }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) {
+      return NextResponse.json({ code: 400, data: null, message: "缺少ID" }, { status: 400 })
+    }
+    await prisma.shop.delete({ where: { id } })
+    return NextResponse.json({ code: 200, data: null, message: "删除成功" })
+  } catch (error) {
+    return NextResponse.json({ code: 500, data: null, message: "删除失败" }, { status: 500 })
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
