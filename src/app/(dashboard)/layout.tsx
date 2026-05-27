@@ -28,6 +28,7 @@ import {
   Warehouse,
   BookOpen,
   Search,
+  Globe,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -99,6 +100,7 @@ const menuGroups = [
       { href: "/system/role", label: "角色管理", icon: Shield },
       { href: "/system/dept", label: "部门管理", icon: Building2 },
       { href: "/system/post", label: "岗位管理", icon: Settings },
+      { href: "/settings/douyin", label: "抖店授权", icon: Globe },
     ],
   },
 ]

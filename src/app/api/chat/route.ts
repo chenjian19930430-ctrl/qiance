@@ -176,6 +176,16 @@ interface ModelCallOptions {
 async function callAI(content: string, options: ModelCallOptions): Promise<string> {
   const { provider, model, apiKey, baseUrl } = options
 
+  // 构建系统提示
+  const systemPrompt = [
+    "你是一个专业的电商AI助手，帮助用户分析数据、管理商品、优化运营。请用中文回答，简洁专业。",
+    "",
+    "## 数据查询能力",
+    "当用户询问销售额、订单量、商品排行、库存等信息时，我会自动从千策数据库查询真实数据。",
+    "系统会在收到用户消息前自动执行数据查询，并将结果注入到对话上下文中。",
+    "基于真实数据回答，不编造数据。",
+  ].join("\n")
+
   if (!apiKey) {
     // 无 API Key 时返回模拟回复
     const mockReplies = [
@@ -185,6 +195,32 @@ async function callAI(content: string, options: ModelCallOptions): Promise<strin
     ]
     return mockReplies[Math.floor(Math.random() * mockReplies.length)]
   }
+
+  // 尝试查询数据库
+  let dataContext = ""
+  try {
+    const { queryDatabaseIntelligence } = await import("@/lib/agents/tools")
+    const queryResult = await queryDatabaseIntelligence(content)
+    if (queryResult) {
+      dataContext = queryResult
+    }
+  } catch {
+    // 数据查询失败不阻塞对话
+  }
+
+  // 构建消息列表
+  const messages: { role: string; content: string }[] = [
+    { role: "system", content: systemPrompt },
+  ]
+
+  if (dataContext) {
+    messages.push({
+      role: "assistant",
+      content: `[系统通知] 我已查询数据库获取以下相关数据：\n${dataContext}\n\n我将基于以上数据回答用户的问题。`,
+    })
+  }
+
+  messages.push({ role: "user", content })
 
   if (provider === "minimax") {
     const mmBaseUrl = baseUrl || "https://api.minimax.chat/v1"
@@ -196,10 +232,7 @@ async function callAI(content: string, options: ModelCallOptions): Promise<strin
       },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: "system", content: "你是一个专业的电商AI助手，帮助用户分析数据、管理商品、优化运营。请用中文回答，简洁专业。" },
-          { role: "user", content },
-        ],
+        messages,
         temperature: 0.7,
         max_tokens: 2048,
       }),
@@ -224,10 +257,7 @@ async function callAI(content: string, options: ModelCallOptions): Promise<strin
     },
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: "你是一个专业的电商AI助手，帮助用户分析数据、管理商品、优化运营。请用中文回答，简洁专业。" },
-        { role: "user", content },
-      ],
+      messages,
       temperature: 0.7,
       max_tokens: 2048,
     }),
