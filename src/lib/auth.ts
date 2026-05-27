@@ -1,84 +1,88 @@
-import NextAuth from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
-import { compare } from 'bcryptjs';
-import { prisma } from './prisma';
+import NextAuth from "next-auth"
+import CredentialsProvider from "next-auth/providers/credentials"
+import bcrypt from "bcryptjs"
+import { prisma } from "@/lib/prisma"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    Credentials({
-      name: 'credentials',
+    CredentialsProvider({
+      name: "credentials",
       credentials: {
-        phone: { label: '手机号', type: 'text' },
-        password: { label: '密码', type: 'password' },
+        username: { label: "用户名", type: "text" },
+        password: { label: "密码", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.phone || !credentials?.password) return null;
-
-        const phone = credentials.phone as string;
-        const password = credentials.password as string;
+        if (!credentials?.username || !credentials?.password) {
+          throw new Error("请输入用户名和密码")
+        }
 
         const user = await prisma.user.findUnique({
-          where: { phone },
+          where: { username: credentials.username as string },
           include: {
-            role: {
+            roles: {
               include: {
-                roleMenus: {
+                role: {
                   include: {
-                    menu: true,
+                    permissions: {
+                      include: {
+                        permission: true,
+                      },
+                    },
                   },
                 },
               },
             },
-            tenant: true,
           },
-        });
+        })
 
-        if (!user) throw new Error('用户不存在');
-        if (user.status === 1) throw new Error('账号已禁用');
+        if (!user) {
+          throw new Error("用户不存在")
+        }
 
-        const isValid = await compare(password, user.password);
-        if (!isValid) throw new Error('密码错误');
+        if (user.status === 1) {
+          throw new Error("账号已被禁用")
+        }
 
-        const permissions = user.role?.roleMenus.map((rm) => rm.menu.permission).filter(Boolean) || [];
+        const isValid = await bcrypt.compare(credentials.password as string, user.password)
+        if (!isValid) {
+          throw new Error("密码错误")
+        }
 
         return {
           id: user.id,
-          name: user.name,
-          phone: user.phone,
+          username: user.username,
+          realName: user.realName,
           tenantId: user.tenantId,
-          role: user.role?.code || 'user',
-          permissions,
-        };
+          roles: user.roles.map((ur) => ur.role.code),
+          permissions: user.roles.flatMap((ur) =>
+            ur.role.permissions.map((rp) => rp.permission.code)
+          ),
+        }
       },
     }),
   ],
-  session: {
-    strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24小时
-  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.phone = user.phone;
-        token.tenantId = user.tenantId;
-        token.role = user.role;
-        token.permissions = user.permissions;
+        token.userId = user.id
+        token.tenantId = (user as any).tenantId
+        token.roles = (user as any).roles
+        token.permissions = (user as any).permissions
       }
-      return token;
+      return token
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.phone = token.phone as string;
-        session.user.tenantId = token.tenantId as string;
-        session.user.role = token.role as string;
-        session.user.permissions = token.permissions as string[];
+      if (session.user) {
+        session.user.id = token.userId as string
+        ;(session.user as any).tenantId = token.tenantId as string
+        ;(session.user as any).roles = token.roles as string[]
+        ;(session.user as any).permissions = token.permissions as string[]
       }
-      return session;
+      return session
     },
   },
   pages: {
-    signIn: '/login',
+    signIn: "/login",
   },
-});
+  secret: process.env.AUTH_SECRET,
+})

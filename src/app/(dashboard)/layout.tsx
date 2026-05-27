@@ -1,234 +1,210 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
-  Cpu,
   Bot,
   MessageSquare,
-  PieChart,
+  BarChart3,
   Building2,
   Store,
   Package,
-  BarChart3,
   ShoppingCart,
-  Warehouse,
+  Files,
   Users,
+  Shield,
+  Building,
+  FileText,
+  Truck,
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut,
   Sun,
   Moon,
-  Bell,
-  ChevronDown,
-  Shield,
-  TrendingUp,
-  DollarSign,
-  FileText,
-  HelpCircle,
-  Globe,
-  Calculator,
-  Receipt,
-  FileCheck,
-  Search,
-  Layers,
-  Megaphone,
-  Zap,
-} from 'lucide-react';
-import { useTheme } from 'next-themes';
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useState } from "react"
+import { signOut } from "next-auth/react"
+import { useTheme } from "next-themes"
 
-// 菜单结构
-interface MenuItem {
-  title: string;
-  icon: React.ElementType;
-  path?: string;
-  children?: MenuItem[];
-}
-
-const menuGroups: { title: string; items: MenuItem[] }[] = [
+const menuGroups = [
   {
-    title: '概览',
+    label: "AI智能",
     items: [
-      { title: 'AI看板', icon: LayoutDashboard, path: '/dashboard' },
-      { title: 'AI驾驶舱', icon: Cpu, path: '/ai/board' },
+      { href: "/ai/board", label: "AI全域看板", icon: LayoutDashboard },
+      { href: "/ai/agent", label: "全部智能体", icon: Bot },
+      { href: "/ai/chat", label: "AI对话", icon: MessageSquare },
     ],
   },
   {
-    title: 'AI智能体',
+    label: "数据分析",
     items: [
-      { title: '智能体列表', icon: Bot, path: '/ai/agent' },
-      { title: 'AI对话', icon: MessageSquare, path: '/ai/chat' },
+      { href: "/dashboard", label: "综合看板", icon: BarChart3 },
+      { href: "/finance/dashboard", label: "财务综合看板", icon: BarChart3 },
+      { href: "/finance/revenue", label: "营收分析", icon: BarChart3 },
+      { href: "/finance/profit", label: "利润分析", icon: BarChart3 },
     ],
   },
   {
-    title: '财税中心',
+    label: "档案管理",
     items: [
-      { title: '财务综合看板', icon: PieChart, path: '/finance/dashboard' },
-      { title: '营收分析', icon: TrendingUp, path: '/finance/revenue' },
-      { title: '成本分析', icon: Receipt, path: '/finance/cost' },
-      { title: '利润分析', icon: DollarSign, path: '/finance/profit' },
-      { title: '财务对账', icon: FileCheck, path: '/finance/reconciliation' },
+      { href: "/company", label: "公司管理", icon: Building },
+      { href: "/shop", label: "店铺管理", icon: Store },
+      { href: "/goods/spu", label: "SPU管理", icon: Package },
+      { href: "/goods/sku", label: "SKU管理", icon: Package },
+      { href: "/goods/category", label: "商品分类", icon: Files },
     ],
   },
   {
-    title: '业务管理',
+    label: "订单管理",
     items: [
-      { title: '公司管理', icon: Building2, path: '/company' },
-      { title: '店铺管理', icon: Store, path: '/shop' },
-      { title: '商品管理', icon: Package, path: '/goods/spu' },
-      { title: 'SKU管理', icon: Layers, path: '/goods/sku' },
-      { title: '商品分类', icon: Search, path: '/goods/category' },
-      { title: '订单管理', icon: ShoppingCart, path: '/order/list' },
-      { title: '售后订单', icon: FileText, path: '/order/refund' },
-      { title: '结算订单', icon: Calculator, path: '/order/settlement' },
+      { href: "/order/list", label: "原始订单", icon: ShoppingCart },
+      { href: "/order/settlement", label: "结算订单", icon: FileText },
+      { href: "/order/refund", label: "售后订单", icon: Truck },
     ],
   },
   {
-    title: '供应链',
+    label: "供应链",
     items: [
-      { title: '库存概览', icon: Warehouse, path: '/inventory/overview' },
-      { title: '供应商管理', icon: Globe, path: '/supplier' },
-      { title: '合同管理', icon: FileText, path: '/contract' },
+      { href: "/supplier", label: "供应商管理", icon: Truck },
+      { href: "/contract", label: "合同管理", icon: FileText },
     ],
   },
   {
-    title: '系统管理',
+    label: "系统设置",
     items: [
-      { title: '用户管理', icon: Users, path: '/system/user' },
-      { title: '角色管理', icon: Shield, path: '/system/role' },
-      { title: '部门管理', icon: Building2, path: '/system/dept' },
-      { title: '岗位管理', icon: Settings, path: '/system/post' },
+      { href: "/system/user", label: "用户管理", icon: Users },
+      { href: "/system/role", label: "角色管理", icon: Shield },
+      { href: "/system/dept", label: "部门管理", icon: Building2 },
+      { href: "/system/post", label: "岗位管理", icon: Settings },
     ],
   },
-];
-
-const iconSize = 18;
+]
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(menuGroups.map((g) => g.title)));
-  const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
-
-  const toggleGroup = (title: string) => {
-    const next = new Set(expandedGroups);
-    if (next.has(title)) next.delete(title);
-    else next.add(title);
-    setExpandedGroups(next);
-  };
-
-  const isActive = (path?: string) => path && pathname.startsWith(path);
+  const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* 侧边栏 */}
       <aside
-        className={`${
-          collapsed ? 'w-16' : 'w-60'
-        } bg-slate-900 text-white flex flex-col transition-all duration-300 ease-in-out shrink-0`}
+        className={cn(
+          "flex flex-col border-r bg-card transition-all duration-300",
+          collapsed ? "w-16" : "w-60"
+        )}
       >
         {/* Logo */}
-        <div className={`flex items-center gap-2 px-4 h-14 border-b border-slate-700/50 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-bold">千</span>
-          </div>
-          {!collapsed && <span className="font-semibold text-base">千策AI</span>}
+        <div className="flex items-center justify-between h-14 px-4 border-b">
+          {!collapsed && (
+            <Link href="/ai/board" className="font-bold text-lg">
+              千策 QianCe
+            </Link>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
         </div>
 
         {/* 菜单 */}
-        <div className="flex-1 overflow-y-auto sidebar-scroll py-2 px-2">
+        <nav className="flex-1 overflow-y-auto p-2 space-y-4">
           {menuGroups.map((group) => (
-            <div key={group.title} className="mb-1">
+            <div key={group.label}>
               {!collapsed && (
-                <button
-                  onClick={() => toggleGroup(group.title)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors"
-                >
-                  <ChevronDown
-                    size={12}
-                    className={`transition-transform ${
-                      expandedGroups.has(group.title) ? '' : '-rotate-90'
-                    }`}
-                  />
-                  {group.title}
-                </button>
+                <p className="px-2 text-xs font-medium text-muted-foreground mb-2">
+                  {group.label}
+                </p>
               )}
-              {(expandedGroups.has(group.title) || collapsed) && (
-                <div className="space-y-0.5">
-                  {group.items.map((item) => (
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname.startsWith(item.href)
+                  return (
                     <Link
-                      key={item.title}
-                      href={item.path || '#'}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive(item.path)
-                          ? 'bg-primary text-white'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                      } ${collapsed ? 'justify-center px-2' : ''}`}
-                      title={collapsed ? item.title : undefined}
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 px-2 py-2 rounded-md text-sm transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
                     >
-                      <item.icon size={iconSize} className="shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.label}</span>}
                     </Link>
-                  ))}
-                </div>
-              )}
+                  )
+                })}
+              </div>
             </div>
           ))}
-        </div>
-
-        {/* 折叠按钮 */}
-        <div className="border-t border-slate-700/50 p-2">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center w-full py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
-        </div>
+        </nav>
       </aside>
 
       {/* 主区域 */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* 顶栏 */}
-        <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6 shrink-0">
+        <header className="flex items-center justify-between h-14 px-6 border-b bg-card">
           <div className="flex items-center gap-2">
-            {/* 面包屑或当前页面 */}
+            <h2 className="text-sm font-medium">
+              {menuGroups
+                .flatMap((g) => g.items)
+                .find((i) => pathname.startsWith(i.href))
+                ?.label || "千策"}
+            </h2>
           </div>
-          <div className="flex items-center gap-3">
-            {/* 通知 */}
-            <button className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors relative">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
-            {/* 暗色模式 */}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            {/* 用户信息 */}
-            <div className="flex items-center gap-2 pl-3 border-l border-border">
-              <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center text-white text-xs font-medium">
-                陈
-              </div>
-              <span className="text-sm font-medium">陈剑</span>
-              <ChevronDown size={14} className="text-muted-foreground" />
-            </div>
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>陈</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">陈</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  退出登录
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
-        {/* 页面内容 */}
-        <main className="flex-1 overflow-auto bg-background">
+        {/* 内容 */}
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
       </div>
     </div>
-  );
+  )
 }

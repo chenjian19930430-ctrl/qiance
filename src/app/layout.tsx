@@ -1,20 +1,20 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from 'sonner';
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: '千策AI - 电商智能运营平台',
-  description: '千策AI - 电商AI智能体运营平台 | 厦门重构艺数科技有限公司',
-};
+  title: "千策 QianCe AI - 电商AI智能体平台",
+  description: "千策 - 电商AI智能体平台，AI驱动电商增长",
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
@@ -26,13 +26,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <Toaster
-            position="top-right"
-            richColors
-            closeButton
-          />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

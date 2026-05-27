@@ -1,121 +1,227 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import { Bot, Send, BotMessageSquare } from 'lucide-react';
-
-const agents = [
-  { id: 'all', name: '全部智能体' },
-  { id: 'product', name: '商品管理助手' },
-  { id: 'ads', name: '投流策略官' },
-  { id: 'finance', name: '财务记账助手' },
-  { id: 'tax', name: '税务申报助手' },
-];
-
-const welcomeMessage = {
-  role: 'assistant',
-  content: '你好！我是千策AI助手，我可以帮你管理商品、优化投放策略、处理财务税务等工作。请选择上方智能体或直接输入你的问题。',
-};
+import { useState, useRef, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { getAgentByCode } from "@/lib/agents/router"
+import { agents } from "@/lib/agents/agents"
+import { Bot, Send, User, Copy, Check, Loader2 } from "lucide-react"
 
 interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  agentId?: string;
+  id: string
+  role: "user" | "assistant" | "system"
+  content: string
+  agentName?: string
+  timestamp: Date
 }
 
-export default function AiChatPage() {
-  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
-  const [input, setInput] = useState('');
-  const [selectedAgent, setSelectedAgent] = useState('all');
+export default function AIChatPage() {
+  const searchParams = useSearchParams()
+  const initialQuery = searchParams.get("q") || ""
+  const initialAgent = searchParams.get("agent") || ""
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const userMsg: Message = { role: 'user', content: input, agentId: selectedAgent };
-    const reply: Message = {
-      role: 'assistant',
-      content: `已收到你的消息，正在由${agents.find(a => a.id === selectedAgent)?.name || '全部智能体'}处理中...`,
-    };
-    setMessages((prev) => [...prev, userMsg, reply]);
-    setInput('');
-  };
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content: initialAgent
+        ? `您好，我是${getAgentByCode(initialAgent)?.name || "千策AI"}，请问有什么可以帮助您的？`
+        : "您好，我是千策AI助手，请问有什么可以帮助您的？",
+      timestamp: new Date(),
+    },
+  ])
+  const [input, setInput] = useState(initialQuery || "")
+  const [loading, setLoading] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  // 如果有初始问题，自动发送
+  useEffect(() => {
+    if (initialQuery) {
+      handleSend(initialQuery)
     }
-  };
+  }, [])
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages])
+
+  // 如果有初始智能体选择，自动添加agent info消息
+  useEffect(() => {
+    if (initialAgent) {
+      const agent = getAgentByCode(initialAgent)
+      if (agent) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "agent-info",
+            role: "assistant",
+            content: `已切换到 **${agent.name}**\n\n${agent.description}\n\n请向我提问，我会用专业知识为你服务。`,
+            agentName: agent.name,
+            timestamp: new Date(),
+          },
+        ])
+      }
+    }
+  }, [])
+
+  async function handleSend(content?: string) {
+    const text = content || input
+    if (!text.trim() || loading) return
+
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: text,
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setLoading(true)
+
+    // TODO: 实际调用AI接口
+    // 模拟AI回复
+    setTimeout(() => {
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        role: "assistant",
+        content: `感谢您的提问！关于"${text}"的问题，千策AI正在分析中。\n\n这是千策演示版的示例回复。正式版将集成AI模型，提供真正的智能分析。\n\n**功能预览：**\n1. 📊 自动数据查询与分析\n2. 📈 可视化图表生成\n3. 💡 业务洞察与建议`,
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, aiMessage])
+      setLoading(false)
+    }, 1500)
+  }
+
+  async function copyMessage(content: string, id: string) {
+    await navigator.clipboard.writeText(content)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">AI对话</h1>
-        <p className="text-muted-foreground text-sm mt-1">与智能体对话，获取即时帮助</p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-border flex flex-col h-[calc(100vh-220px)] min-h-[500px]">
-        {/* Top bar - Agent Selector */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
-          <Bot className="w-5 h-5 text-muted-foreground" />
-          <div className="flex gap-2 flex-wrap">
+    <div className="flex h-[calc(100vh-8rem)] gap-4">
+      {/* 智能体列表 */}
+      <Card className="w-60 p-2 hidden lg:block">
+        <ScrollArea className="h-full">
+          <div className="space-y-1">
+            <p className="px-2 text-xs font-medium text-muted-foreground mb-2">全部智能体</p>
             {agents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => setSelectedAgent(agent.id)}
-                className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
-                  selectedAgent === agent.id
-                    ? 'bg-primary text-white'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
+              <Button
+                key={agent.code}
+                variant={initialAgent === agent.code ? "secondary" : "ghost"}
+                size="sm"
+                className="w-full justify-start text-xs"
+                onClick={() => {
+                  window.location.href = `/ai/chat?agent=${agent.code}`
+                }}
               >
-                {agent.name}
-              </button>
+                <Bot className="h-3 w-3 mr-1 shrink-0" />
+                <span className="truncate">{agent.name}</span>
+              </Button>
             ))}
           </div>
-        </div>
+        </ScrollArea>
+      </Card>
 
-        {/* Chat area */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {messages.map((msg, idx) => (
-            <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-              {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <BotMessageSquare className="w-4 h-4 text-primary" />
-                </div>
-              )}
+      {/* 对话区域 */}
+      <div className="flex-1 flex flex-col">
+        <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+          <div className="space-y-4 pb-4">
+            {messages.map((msg) => (
               <div
-                className={`max-w-[70%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-sm'
-                    : 'bg-muted text-foreground rounded-bl-sm'
-                }`}
+                key={msg.id}
+                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
               >
-                {msg.content}
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback>
+                    {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={`max-w-[80%] ${msg.role === "user" ? "items-end" : ""}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium">
+                      {msg.role === "user" ? "我" : msg.agentName || "千策AI"}
+                    </span>
+                    {msg.agentName && (
+                      <Badge variant="secondary" className="text-xs">
+                        {msg.agentName}
+                      </Badge>
+                    )}
+                  </div>
+                  <div
+                    className={`rounded-lg p-3 text-sm ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      {msg.content.split("\n").map((line, i) => (
+                        <p key={i} className="mb-1 last:mb-0">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">
+                      {msg.timestamp.toLocaleTimeString("zh-CN")}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => copyMessage(msg.content, msg.id)}
+                    >
+                      {copiedId === msg.id ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Input area */}
-        <div className="border-t border-border px-5 py-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="输入你的问题..."
-              className="flex-1 bg-muted rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary/30"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Send className="w-4 h-4" />
-            </button>
+            ))}
+            {loading && (
+              <div className="flex gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-muted rounded-lg p-3">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              </div>
+            )}
           </div>
+        </ScrollArea>
+
+        {/* 输入框 */}
+        <div className="flex gap-2 pt-4 border-t">
+          <Input
+            ref={inputRef}
+            placeholder="输入你想了解的内容..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            disabled={loading}
+          />
+          <Button onClick={() => handleSend()} disabled={loading || !input.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,39 +1,65 @@
-import { prisma } from '@/lib/prisma';
-import { apiSuccess, apiList, apiError } from '@/lib/utils';
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export async function GET(request: Request) {
+// GET /api/company - 公司列表
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const pageNum = parseInt(searchParams.get('pageNum') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
-    const name = searchParams.get('name') || '';
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const pageSize = parseInt(searchParams.get("pageSize") || "20")
+    const name = searchParams.get("name") || ""
 
-    const where = name ? { name: { contains: name } } : {};
+    const where = name ? { name: { contains: name } } : {}
 
-    const [rows, total] = await Promise.all([
+    const [list, total] = await Promise.all([
       prisma.company.findMany({
         where,
-        skip: (pageNum - 1) * pageSize,
+        skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       prisma.company.count({ where }),
-    ]);
+    ])
 
-    return apiList(rows, total, pageNum, pageSize);
+    return NextResponse.json({
+      code: 200,
+      data: { list, total, page, pageSize },
+      message: "success",
+    })
   } catch (error) {
-    console.error('查询公司列表失败:', error);
-    return apiError('查询失败');
+    console.error("Company list error:", error)
+    return NextResponse.json(
+      { code: 500, data: null, message: "查询失败" },
+      { status: 500 }
+    )
   }
 }
 
-export async function POST(request: Request) {
+// POST /api/company - 创建公司
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const company = await prisma.company.create({ data: body });
-    return apiSuccess(company, '创建成功');
+    const body = await req.json()
+    const company = await prisma.company.create({
+      data: {
+        name: body.name,
+        code: body.code,
+        address: body.address,
+        phone: body.phone,
+        contact: body.contact,
+        tenantId: body.tenantId || "default",
+      },
+    })
+
+    return NextResponse.json({
+      code: 200,
+      data: company,
+      message: "创建成功",
+    })
   } catch (error) {
-    console.error('创建公司失败:', error);
-    return apiError('创建失败');
+    console.error("Company create error:", error)
+    return NextResponse.json(
+      { code: 500, data: null, message: "创建失败" },
+      { status: 500 }
+    )
   }
 }

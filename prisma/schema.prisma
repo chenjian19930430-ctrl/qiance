@@ -20,21 +20,30 @@ datasource db {
 // ============================================================
 
 model Tenant {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  code      String   @unique // 租户编码
-  logo      String?  // 租户logo
-  status    Int      @default(0) // 0=正常, 1=禁用
+  code      String    @unique // 租户编码
+  logo      String? // 租户logo
+  status    Int       @default(0) // 0=正常, 1=禁用
   expireAt  DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  users     User[]
-  roles     Role[]
-  depts     Dept[]
-  posts     Post[]
-  companies Company[]
-  shops     Shop[]
+  users         User[]
+  roles         Role[]
+  depts         Dept[]
+  posts         Post[]
+  companies     Company[]
+  shops         Shop[]
+  categories    Category[]
+  spus          Spu[]
+  skus          Sku[]
+  orders        Order[]
+  conversations Conversation[]
+  agents        Agent[]
+  suppliers     Supplier[]
+  contracts     Contract[]
+  dashboards    Dashboard[]
   // 其他租户级数据
 }
 
@@ -42,7 +51,7 @@ model User {
   id        String   @id @default(cuid())
   tenantId  String
   username  String   @unique
-  password  String   // bcrypt hash
+  password  String // bcrypt hash
   realName  String
   phone     String?
   email     String?
@@ -53,13 +62,13 @@ model User {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  roles    UserRole[]
-  depts    UserDept[]
-  posts    UserPost[]
-  messages ChatMessage[]
+  roles            UserRole[]
+  depts            UserDept[]
+  posts            UserPost[]
+  messages         ChatMessage[]
   // 创建关联
-  createdCompanies Company[] @relation("CompanyCreator")
-  createdShops     Shop[]    @relation("ShopCreator")
+  createdCompanies Company[]     @relation("CompanyCreator")
+  createdShops     Shop[]        @relation("ShopCreator")
 
   @@index([tenantId])
 }
@@ -77,7 +86,7 @@ model Role {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  users      UserRole[]
+  users       UserRole[]
   permissions RolePermission[]
 
   @@index([tenantId])
@@ -86,15 +95,15 @@ model Role {
 model UserRole {
   userId String
   roleId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
 }
 
 model Permission {
   id        String   @id @default(cuid())
-  name      String   // 权限名称
+  name      String // 权限名称
   code      String   @unique // 权限编码：system:user:list
   type      Int      @default(0) // 0=目录, 1=菜单, 2=按钮
   parentId  String?
@@ -106,9 +115,9 @@ model Permission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  parent     Permission?     @relation("PermissionTree", fields: [parentId], references: [id])
-  children   Permission[]    @relation("PermissionTree")
-  roles      RolePermission[]
+  parent   Permission?      @relation("PermissionTree", fields: [parentId], references: [id])
+  children Permission[]     @relation("PermissionTree")
+  roles    RolePermission[]
 }
 
 model RolePermission {
@@ -124,6 +133,7 @@ model Dept {
   id        String   @id @default(cuid())
   tenantId  String
   name      String
+  code      String // 部门编码
   parentId  String?
   sort      Int      @default(0)
   status    Int      @default(0)
@@ -133,9 +143,9 @@ model Dept {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  parent   Dept?    @relation("DeptTree", fields: [parentId], references: [id])
-  children Dept[]   @relation("DeptTree")
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  parent   Dept?      @relation("DeptTree", fields: [parentId], references: [id])
+  children Dept[]     @relation("DeptTree")
   users    UserDept[]
 
   @@index([tenantId])
@@ -144,8 +154,8 @@ model Dept {
 model UserDept {
   userId String
   deptId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dept   Dept @relation(fields: [deptId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dept   Dept   @relation(fields: [deptId], references: [id], onDelete: Cascade)
 
   @@id([userId, deptId])
 }
@@ -161,7 +171,7 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
   users  UserPost[]
 
   @@index([tenantId])
@@ -170,8 +180,8 @@ model Post {
 model UserPost {
   userId String
   postId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@id([userId, postId])
 }
@@ -184,7 +194,7 @@ model Company {
   id        String   @id @default(cuid())
   tenantId  String
   name      String
-  code      String   // 公司编码
+  code      String // 公司编码
   address   String?
   phone     String?
   email     String?
@@ -198,9 +208,9 @@ model Company {
   tenant  Tenant @relation(fields: [tenantId], references: [id])
   creator User?  @relation("CompanyCreator", fields: [creatorId], references: [id])
 
-  shops   Shop[]
-  spus    Spu[]
-  orders  Order[]
+  shops  Shop[]
+  spus   Spu[]
+  orders Order[]
 
   @@index([tenantId])
 }
@@ -210,8 +220,8 @@ model Shop {
   tenantId  String
   companyId String
   name      String
-  code      String   // 店铺编码
-  channel   String?  // 渠道：京东/淘宝/拼多多/抖音
+  code      String // 店铺编码
+  channel   String? // 渠道：京东/淘宝/拼多多/抖音
   url       String?
   status    Int      @default(0)
   remark    String?
@@ -219,14 +229,14 @@ model Shop {
   updatedAt DateTime @updatedAt
   creatorId String?
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  company Company  @relation(fields: [companyId], references: [id])
-  creator User?    @relation("ShopCreator", fields: [creatorId], references: [id])
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+  creator User?   @relation("ShopCreator", fields: [creatorId], references: [id])
 
-  spus          Spu[]
-  orderItems    OrderItem[]
-  skus          Sku[]
-  supplierShop  SupplierShop[]
+  orderItems   OrderItem[]
+  skus         Sku[]
+  supplierShop SupplierShop[]
+  spus         Spu[]
 
   @@index([tenantId])
   @@index([companyId])
@@ -254,17 +264,19 @@ model Spu {
   id          String   @id @default(cuid())
   tenantId    String
   companyId   String
+  shopId      String?
   categoryId  String?
-  name        String   // SPU名称
-  code        String   // SPU编码
+  name        String // SPU名称
+  code        String // SPU编码
   brand       String?
   description String?
   status      Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  company  Company  @relation(fields: [companyId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  company  Company   @relation(fields: [companyId], references: [id])
+  shop     Shop?     @relation(fields: [shopId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
 
   skus Sku[]
@@ -275,19 +287,19 @@ model Spu {
 }
 
 model Sku {
-  id          String   @id @default(cuid())
-  tenantId    String
-  spuId       String
-  shopId      String?
-  name        String   // SKU名称
-  code        String   // SKU编码
-  salePrice   Decimal  @default(0) @db.Decimal(10, 2)
-  costPrice   Decimal  @default(0) @db.Decimal(10, 2)
-  stock       Int      @default(0)
-  status      Int      @default(0) // 0=上架, 1=下架
-  spec        Json?    // SKU规格：{颜色: 红色, 尺寸: XL}
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  tenantId  String
+  spuId     String
+  shopId    String?
+  name      String // SKU名称
+  code      String // SKU编码
+  salePrice Decimal  @default(0) @db.Decimal(10, 2)
+  costPrice Decimal  @default(0) @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  status    Int      @default(0) // 0=上架, 1=下架
+  spec      Json? // SKU规格：{颜色: 红色, 尺寸: XL}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   spu    Spu    @relation(fields: [spuId], references: [id])
@@ -305,25 +317,25 @@ model Sku {
 // ============================================================
 
 model Order {
-  id             String       @id @default(cuid())
+  id             String    @id @default(cuid())
   tenantId       String
   companyId      String
-  orderNo        String       @unique // 原始订单号
-  type           Int          @default(0) // 0=原始订单, 1=结算订单, 2=售后订单
-  channel        String?      // 渠道：京东/淘宝/抖音
-  orderStatus    Int          @default(0)
-  totalAmount    Decimal      @default(0) @db.Decimal(10, 2)
-  discountAmount Decimal      @default(0) @db.Decimal(10, 2)
-  realAmount     Decimal      @default(0) @db.Decimal(10, 2)
-  platformFee    Decimal      @default(0) @db.Decimal(10, 2)
-  logisticsFee   Decimal      @default(0) @db.Decimal(10, 2)
+  orderNo        String    @unique // 原始订单号
+  type           Int       @default(0) // 0=原始订单, 1=结算订单, 2=售后订单
+  channel        String? // 渠道：京东/淘宝/抖音
+  orderStatus    Int       @default(0)
+  totalAmount    Decimal   @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal   @default(0) @db.Decimal(10, 2)
+  realAmount     Decimal   @default(0) @db.Decimal(10, 2)
+  platformFee    Decimal   @default(0) @db.Decimal(10, 2)
+  logisticsFee   Decimal   @default(0) @db.Decimal(10, 2)
   buyerName      String?
   buyerPhone     String?
   buyerAddress   String?
   remark         String?
   orderTime      DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id])
   company Company @relation(fields: [companyId], references: [id])
@@ -348,9 +360,9 @@ model OrderItem {
   subtotal  Decimal  @default(0) @db.Decimal(10, 2)
   createdAt DateTime @default(now())
 
-  order Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  shop  Shop?  @relation(fields: [shopId], references: [id])
-  sku   Sku?   @relation(fields: [skuId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shop  Shop? @relation(fields: [shopId], references: [id])
+  sku   Sku?  @relation(fields: [skuId], references: [id])
 
   @@index([orderId])
   @@index([shopId])
@@ -366,12 +378,12 @@ model Conversation {
   tenantId  String
   userId    String
   title     String   @default("新对话")
-  agentId   String?  // 关联的智能体
+  agentId   String? // 关联的智能体
   status    Int      @default(0) // 0=进行中, 1=已结束
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   messages ChatMessage[]
 
@@ -382,14 +394,16 @@ model Conversation {
 model ChatMessage {
   id             String   @id @default(cuid())
   conversationId String
-  role           String   // user / assistant / system
+  role           String // user / assistant / system
   content        String   @db.Text
-  agentId        String?  // 由哪个智能体回复
-  tokens         Int?     // token消耗
-  metadata       Json?    // 额外数据（图表配置等）
+  agentId        String? // 由哪个智能体回复
+  tokens         Int? // token消耗
+  metadata       Json? // 额外数据（图表配置等）
   createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
 
   @@index([conversationId])
   @@index([createdAt])
@@ -398,9 +412,9 @@ model ChatMessage {
 model Agent {
   id          String   @id @default(cuid())
   tenantId    String?
-  name        String   // 智能体名称
+  name        String // 智能体名称
   code        String   @unique // 英文标识
-  group       String   // 分组：finance/growth/product/general
+  group       String // 分组：finance/growth/product/general
   description String?
   prompt      String   @db.Text // 系统提示词模板
   icon        String?
@@ -435,7 +449,7 @@ model Supplier {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  shops SupplierShop[]
+  shops     SupplierShop[]
   contracts Contract[]
 
   @@index([tenantId])
@@ -451,20 +465,20 @@ model SupplierShop {
 }
 
 model Contract {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   tenantId   String
   supplierId String
-  contractNo String   @unique
+  contractNo String    @unique
   name       String
-  type       Int      @default(0) // 0=采购, 1=代销, 2=服务
-  amount     Decimal  @default(0) @db.Decimal(12, 2)
+  type       Int       @default(0) // 0=采购, 1=代销, 2=服务
+  amount     Decimal   @default(0) @db.Decimal(12, 2)
   startDate  DateTime?
   endDate    DateTime?
-  status     Int      @default(0)
-  file       String?  // 合同文件URL
+  status     Int       @default(0)
+  file       String? // 合同文件URL
   remark     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   tenant   Tenant   @relation(fields: [tenantId], references: [id])
   supplier Supplier @relation(fields: [supplierId], references: [id])
@@ -482,7 +496,7 @@ model Dashboard {
   tenantId  String
   userId    String
   name      String
-  config    Json?    // Dashboard配置JSON
+  config    Json? // Dashboard配置JSON
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

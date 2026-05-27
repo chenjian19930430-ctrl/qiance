@@ -1,48 +1,42 @@
-import { z } from 'zod';
+import { z } from "zod"
 
+// 登录表单验证
 export const loginSchema = z.object({
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '请输入正确手机号'),
-  password: z.string().min(6, '密码至少6位'),
-});
+  username: z.string().min(1, "请输入用户名"),
+  password: z.string().min(6, "密码至少6位"),
+})
 
-export const smsLoginSchema = z.object({
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '请输入正确手机号'),
-  code: z.string().length(4, '验证码为4位'),
-});
+export type LoginInput = z.infer<typeof loginSchema>
 
+// 注册表单验证
 export const registerSchema = z.object({
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '请输入正确手机号'),
-  password: z.string().min(6, '密码至少6位').max(32, '密码最长32位'),
+  username: z.string().min(3, "用户名至少3位"),
+  password: z.string().min(6, "密码至少6位"),
   confirmPassword: z.string(),
-  companyName: z.string().min(1, '请输入公司名称'),
-  name: z.string().min(1, '请输入姓名'),
+  phone: z.string().regex(/^1[3-9]\d{9}$/, "手机号格式不正确"),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: '两次密码不一致',
-  path: ['confirmPassword'],
-});
+  message: "两次密码不一致",
+  path: ["confirmPassword"],
+})
 
-export const companySchema = z.object({
-  name: z.string().min(1, '公司名称不能为空'),
-  code: z.string().optional(),
-  address: z.string().optional(),
-  contact: z.string().optional(),
+export type RegisterInput = z.infer<typeof registerSchema>
+
+// 通用分页参数
+export const paginationSchema = z.object({
+  page: z.coerce.number().default(1),
+  pageSize: z.coerce.number().default(20),
+})
+
+export type PaginationInput = z.infer<typeof paginationSchema>
+
+// 用户创建表单
+export const createUserSchema = z.object({
+  username: z.string().min(3),
+  realName: z.string().min(1, "请输入真实姓名"),
+  password: z.string().min(6),
   phone: z.string().optional(),
-  status: z.number().default(0),
-});
+  email: z.string().email().optional(),
+  roleIds: z.array(z.string()).optional(),
+})
 
-export const shopSchema = z.object({
-  name: z.string().min(1, '店铺名称不能为空'),
-  code: z.string().optional(),
-  platform: z.string().optional(),
-  companyId: z.string().optional(),
-  status: z.number().default(0),
-});
-
-export const skuSchema = z.object({
-  skuName: z.string().min(1, 'SKU名称不能为空'),
-  skuId: z.string().optional(),
-  spuId: z.string().optional(),
-  salePrice: z.number().positive('价格必须大于0'),
-  categoryName: z.string().optional(),
-  stock: z.number().int().default(0),
-});
+export type CreateUserInput = z.infer<typeof createUserSchema>

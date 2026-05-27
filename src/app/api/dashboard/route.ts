@@ -1,41 +1,38 @@
-import { apiSuccess, apiError } from '@/lib/utils';
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-// Dashboard模拟数据（Phase 1先返回静态示例数据，后续对接真实数据）
+// GET /api/dashboard/overview - 首页概览数据
 export async function GET() {
   try {
-    const data = {
-      overview: {
-        todayRevenue: { value: 128560, change: 12.5, trend: 'up' },
-        todayOrders: { value: 326, change: -3.2, trend: 'down' },
-        todayVisitors: { value: 2849, change: 8.1, trend: 'up' },
-        profitRate: { value: 18.6, change: 2.3, trend: 'up' },
-      },
-      revenueTrend: [
-        { date: '05-20', value: 98000 },
-        { date: '05-21', value: 105000 },
-        { date: '05-22', value: 112000 },
-        { date: '05-23', value: 99000 },
-        { date: '05-24', value: 118000 },
-        { date: '05-25', value: 125000 },
-        { date: '05-26', value: 128560 },
-      ],
-      topProducts: [
-        { name: '商品A', sales: 3280 },
-        { name: '商品B', sales: 2450 },
-        { name: '商品C', sales: 1890 },
-        { name: '商品D', sales: 1560 },
-        { name: '商品E', sales: 1230 },
-      ],
-      orderDistribution: {
-        pending: 45,
-        shipped: 128,
-        completed: 892,
-        refunded: 23,
-      },
-    };
+    const now = new Date()
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    return apiSuccess(data);
+    const [totalOrders, totalRevenue, totalRefunds] = await Promise.all([
+      prisma.order.count({
+        where: { orderTime: { gte: firstDay } },
+      }),
+      prisma.order.aggregate({
+        _sum: { realAmount: true },
+        where: { orderTime: { gte: firstDay } },
+      }),
+      prisma.order.count({
+        where: { type: 2, orderTime: { gte: firstDay } },
+      }),
+    ])
+
+    const refundRate = totalOrders > 0 ? ((totalRefunds / totalOrders) * 100).toFixed(1) : "0"
+
+    return NextResponse.json({
+      code: 200,
+      data: {
+        totalRevenue: totalRevenue._sum.realAmount || 0,
+        totalOrders,
+        totalRefunds,
+        refundRate: `${refundRate}%`,
+      },
+      message: "success",
+    })
   } catch (error) {
-    return apiError('获取数据失败');
+    return NextResponse.json({ code: 500, data: null, message: "查询失败" }, { status: 500 })
   }
 }
