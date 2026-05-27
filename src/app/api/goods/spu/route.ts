@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-// GET /api/goods/spu
+// GET /api/goods/spu - SPU列表（带分页+搜索）
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -10,14 +10,14 @@ export async function GET(req: Request) {
     const name = searchParams.get("name") || ""
     const categoryId = searchParams.get("categoryId") || ""
 
-    const where: any = {}
+    const where: Record<string, unknown> = {}
     if (name) where.name = { contains: name }
     if (categoryId) where.categoryId = categoryId
 
     const [list, total] = await Promise.all([
       prisma.spu.findMany({
         where,
-        include: { category: true, skus: true },
+        include: { category: true },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: "desc" },
@@ -31,11 +31,36 @@ export async function GET(req: Request) {
       message: "success",
     })
   } catch (error) {
+    console.error("[SPU GET]", error)
     return NextResponse.json({ code: 500, data: null, message: "查询失败" }, { status: 500 })
   }
 }
 
-// PUT /api/goods/spu
+// POST /api/goods/spu - 创建SPU
+export async function POST(req: Request) {
+  try {
+    const body = await req.json()
+    const spu = await prisma.spu.create({
+      data: {
+        name: body.name,
+        code: body.code,
+        brand: body.brand || "",
+        description: body.description || "",
+        status: body.status ?? 0,
+        companyId: body.companyId || "test-company-001",
+        categoryId: body.categoryId || null,
+        shopId: body.shopId || null,
+        tenantId: "default",
+      },
+    })
+    return NextResponse.json({ code: 200, data: spu, message: "创建成功" })
+  } catch (error) {
+    console.error("[SPU POST]", error)
+    return NextResponse.json({ code: 500, data: null, message: "创建失败" }, { status: 500 })
+  }
+}
+
+// PUT /api/goods/spu - 更新SPU
 export async function PUT(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -47,10 +72,12 @@ export async function PUT(req: Request) {
     const spu = await prisma.spu.update({ where: { id }, data: body })
     return NextResponse.json({ code: 200, data: spu, message: "更新成功" })
   } catch (error) {
+    console.error("[SPU PUT]", error)
     return NextResponse.json({ code: 500, data: null, message: "更新失败" }, { status: 500 })
   }
 }
 
+// DELETE /api/goods/spu - 删除SPU
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -61,17 +88,7 @@ export async function DELETE(req: Request) {
     await prisma.spu.delete({ where: { id } })
     return NextResponse.json({ code: 200, data: null, message: "删除成功" })
   } catch (error) {
+    console.error("[SPU DELETE]", error)
     return NextResponse.json({ code: 500, data: null, message: "删除失败" }, { status: 500 })
-  }
-}
-
-// POST /api/goods/spu
-export async function POST(req: Request) {
-  try {
-    const body = await req.json()
-    const spu = await prisma.spu.create({ data: body })
-    return NextResponse.json({ code: 200, data: spu, message: "创建成功" })
-  } catch (error) {
-    return NextResponse.json({ code: 500, data: null, message: "创建失败" }, { status: 500 })
   }
 }

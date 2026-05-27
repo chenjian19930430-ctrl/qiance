@@ -4,16 +4,16 @@ import { CrudPage } from "@/components/ui/crud-page"
 import { api } from "@/lib/api"
 import type { ColumnDef } from "@tanstack/react-table"
 
-interface Contract {
+interface Contract extends Record<string, unknown> {
   id: string
   contractNo: string
   name: string
   type: number
   amount: number | string
-  startDate: string
-  endDate: string
+  startDate: string | null
+  endDate: string | null
   status: number
-  remark: string
+  remark: string | null
   createdAt: string
 }
 

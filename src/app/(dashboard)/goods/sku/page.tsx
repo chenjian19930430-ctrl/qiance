@@ -8,13 +8,13 @@ interface Sku extends Record<string, unknown> {
   id: string
   name: string
   code: string
-  spu?: { name: string }
-  shop?: { name: string }
+  spu?: { id: string; name: string }
+  shop?: { id: string; name: string }
   salePrice: number
   costPrice: number
   stock: number
   status: number
-  specs: string
+  spec: Record<string, string> | null
   createdAt: string
 }
 
@@ -34,14 +34,30 @@ const columns: ColumnDef<Sku>[] = [
   {
     accessorKey: "salePrice",
     header: "售价",
-    cell: ({ row }) => `¥${(row.original.salePrice / 100).toFixed(2)}`,
+    cell: ({ row }) => `¥${Number(row.original.salePrice).toFixed(2)}`,
+  },
+  {
+    accessorKey: "costPrice",
+    header: "成本价",
+    cell: ({ row }) => `¥${Number(row.original.costPrice).toFixed(2)}`,
   },
   { accessorKey: "stock", header: "库存" },
+  {
+    accessorKey: "spec",
+    header: "规格",
+    cell: ({ row }) => {
+      const spec = row.original.spec
+      if (!spec) return "-"
+      return Object.entries(spec).map(([k, v]) => `${k}:${v}`).join(", ")
+    },
+  },
   {
     accessorKey: "status",
     header: "状态",
     cell: ({ row }) => (
-      <span>{row.original.status === 0 ? "正常" : "禁用"}</span>
+      <span className={row.original.status === 0 ? "text-green-600" : "text-muted-foreground"}>
+        {row.original.status === 0 ? "正常" : "禁用"}
+      </span>
     ),
   },
 ]
@@ -49,10 +65,11 @@ const columns: ColumnDef<Sku>[] = [
 const fields = [
   { name: "name", label: "SKU名称", type: "text" as const, required: true },
   { name: "code", label: "SKU编码", type: "text" as const, required: true },
-  { name: "salePrice", label: "售价(分)", type: "number" as const, placeholder: "单位：分" },
-  { name: "costPrice", label: "成本价(分)", type: "number" as const, placeholder: "单位：分" },
+  { name: "spuId", label: "所属SPU ID", type: "text" as const, placeholder: "输入SPU的ID" },
+  { name: "salePrice", label: "售价(元)", type: "number" as const },
+  { name: "costPrice", label: "成本价(元)", type: "number" as const },
   { name: "stock", label: "库存", type: "number" as const },
-  { name: "specs", label: "规格", type: "text" as const, placeholder: "如：颜色:红色,尺寸:L" },
+  { name: "spec", label: "规格(JSON)", type: "text" as const, placeholder: '如 {"颜色":"红色","尺寸":"L"}' },
   { name: "status", label: "状态", type: "select" as const, options: [
     { label: "正常", value: 0 },
     { label: "禁用", value: 1 },
@@ -67,8 +84,28 @@ export default function SkuPage() {
       columns={columns}
       fields={fields}
       fetchData={async (params) => api.get("/api/goods/sku", params)}
-      onCreate={async (values) => api.post("/api/goods/sku", values)}
-      onUpdate={async (id, values) => api.put(`/api/goods/sku?id=${id}`, values)}
+      onCreate={async (values) => {
+        const body: Record<string, unknown> = { ...values }
+        body.tenantId = "default"
+        if (typeof body.salePrice === "string") body.salePrice = parseFloat(body.salePrice)
+        if (typeof body.costPrice === "string") body.costPrice = parseFloat(body.costPrice)
+        if (body.stock !== undefined) body.stock = parseInt(String(body.stock))
+        body.status = body.status ?? 0
+        if (typeof body.spec === "string" && body.spec) {
+          try { body.spec = JSON.parse(body.spec as string) } catch {}
+        }
+        return api.post("/api/goods/sku", body)
+      }}
+      onUpdate={async (id, values) => {
+        const body: Record<string, unknown> = { ...values }
+        if (typeof body.salePrice === "string") body.salePrice = parseFloat(body.salePrice)
+        if (typeof body.costPrice === "string") body.costPrice = parseFloat(body.costPrice)
+        if (body.stock !== undefined) body.stock = parseInt(String(body.stock))
+        if (typeof body.spec === "string" && body.spec) {
+          try { body.spec = JSON.parse(body.spec as string) } catch {}
+        }
+        return api.put(`/api/goods/sku?id=${id}`, body)
+      }}
       onDelete={async (id) => api.delete(`/api/goods/sku?id=${id}`)}
       getId={(row) => row.id}
       searchable
