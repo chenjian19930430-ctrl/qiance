@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const [list, total] = await Promise.all([
       prisma.spu.findMany({
         where,
-        include: { category: true },
+        include: { category: true, skus: true },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: "desc" },
