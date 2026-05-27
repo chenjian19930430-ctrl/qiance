@@ -6,7 +6,7 @@ export default auth((req) => {
   const pathname = nextUrl.pathname
 
   // 公开路由：登录/注册页不需要认证
-  const publicRoutes = ["/login", "/register", "/api/auth", "/api/ai", "/_next"]
+  const publicRoutes = ["/login", "/register", "/api/auth", "/api/ai", "/api/dashboard", "/_next"]
   const isPublic = publicRoutes.some((route) => pathname.startsWith(route))
 
   // 如果是 API 路由，返回 JSON 而非重定向
