@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
     // ── 发送消息（非流式） ──
     if (body.action === "send") {
-      const { conversationId, content } = body
+      const { conversationId, content, modelProvider, modelName, apiKey, baseUrl } = body
       if (!conversationId || !content) {
         return NextResponse.json({ code: 400, data: null, message: "缺少会话ID或消息内容" }, { status: 400 })
       }
@@ -92,7 +92,12 @@ export async function POST(req: Request) {
 
       // 调用 AI 回复
       try {
-        const aiReply = await callAI(content)
+        const aiReply = await callAI(content, {
+          provider: modelProvider || process.env.AI_PRIMARY_PROVIDER || "openai",
+          model: modelName || process.env.OPENAI_MODEL || "gpt-4o-mini",
+          apiKey: apiKey || process.env.OPENAI_API_KEY || process.env.MINIMAX_API_KEY,
+          baseUrl: baseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+        })
 
         const msg = await prisma.chatMessage.create({
           data: {
@@ -159,23 +164,59 @@ export async function PUT(req: Request) {
   }
 }
 
+// ── 模型配置接口 ──
+interface ModelCallOptions {
+  provider: string
+  model: string
+  apiKey?: string
+  baseUrl?: string
+}
+
 // ── AI 调用函数 ──
-async function callAI(content: string): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.MINIMAX_API_KEY
-  const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini"
+async function callAI(content: string, options: ModelCallOptions): Promise<string> {
+  const { provider, model, apiKey, baseUrl } = options
 
   if (!apiKey) {
     // 无 API Key 时返回模拟回复
     const mockReplies = [
       "收到您的消息！我是千策AI助手，当前未配置API Key，这是模拟回复。",
-      `关于"${content.slice(0, 30)}"的问题，我已经记录下来。请配置 OPENAI_API_KEY 环境变量以启用真实对话。`,
-      "您好！千策AI已收到您的提问。请设置API Key后我将为您提供更精准的答案。",
+      `关于"${content.slice(0, 30)}"的问题，我已经记录下来。您可以在左上角的"模型设置"中配置 API Key 以启用真实对话。`,
+      "您好！千策AI已收到您的提问。请在对话界面的模型设置中填入 API Key 后重试。",
     ]
     return mockReplies[Math.floor(Math.random() * mockReplies.length)]
   }
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
+  if (provider === "minimax") {
+    const mmBaseUrl = baseUrl || "https://api.minimax.chat/v1"
+    const res = await fetch(`${mmBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "你是一个专业的电商AI助手，帮助用户分析数据、管理商品、优化运营。请用中文回答，简洁专业。" },
+          { role: "user", content },
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`MiniMax API 错误 (${res.status}): ${errText}`)
+    }
+
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content || "抱歉，我没有理解您的问题。"
+  }
+
+  // 默认：OpenAI 兼容 API
+  const url = (baseUrl || "https://api.openai.com/v1").replace(/\/$/, "")
+  const res = await fetch(`${url}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

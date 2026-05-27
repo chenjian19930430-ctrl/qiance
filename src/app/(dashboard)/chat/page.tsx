@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
@@ -27,6 +28,8 @@ import {
   PenLine,
   ChevronRight,
   Search,
+  Settings2,
+  Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -70,6 +73,37 @@ const AGENTS = [
   { id: "procurement", name: "采购助手", description: "采购计划与供应商管理" },
 ]
 
+// ── 模型配置 ───────────────────────────────────────
+
+interface ModelConfig {
+  provider: "openai" | "minimax" | "mock"
+  model: string
+  apiKey: string
+  baseUrl: string
+}
+
+const MODEL_PRESETS: Record<string, { provider: ModelConfig["provider"]; model: string }> = {
+  "openai-gpt4o-mini": { provider: "openai", model: "gpt-4o-mini" },
+  "openai-gpt4o": { provider: "openai", model: "gpt-4o" },
+  "openai-o3-mini": { provider: "openai", model: "o3-mini" },
+  "openai-o4-mini": { provider: "openai", model: "o4-mini" },
+  "openai-gpt4.1-nano": { provider: "openai", model: "gpt-4.1-nano" },
+  "minimax-pro": { provider: "minimax", model: "minimax-pro" },
+  "minimax-max": { provider: "minimax", model: "minimax-max" },
+  "minimax-light": { provider: "minimax", model: "minimax-light" },
+}
+
+const MODEL_OPTIONS = [
+  { value: "openai-gpt4o-mini", label: "OpenAI GPT-4o-mini", group: "OpenAI" },
+  { value: "openai-gpt4o", label: "OpenAI GPT-4o", group: "OpenAI" },
+  { value: "openai-o3-mini", label: "OpenAI o3-mini", group: "OpenAI" },
+  { value: "openai-o4-mini", label: "OpenAI o4-mini", group: "OpenAI" },
+  { value: "openai-gpt4.1-nano", label: "OpenAI GPT-4.1-nano", group: "OpenAI" },
+  { value: "minimax-pro", label: "MiniMax MiniMax-Pro", group: "MiniMax" },
+  { value: "minimax-max", label: "MiniMax MiniMax-Max", group: "MiniMax" },
+  { value: "minimax-light", label: "MiniMax MiniMax-Light", group: "MiniMax" },
+]
+
 // ── 主页面 ────────────────────────────────────────
 
 export default function ChatPage() {
@@ -85,6 +119,19 @@ export default function ChatPage() {
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // 模型配置
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false)
+  const [modelConfig, setModelConfig] = useState<ModelConfig>(() => {
+    const envProvider = (process.env.NEXT_PUBLIC_AI_PROVIDER || "openai") as ModelConfig["provider"]
+    return {
+      provider: envProvider,
+      model: process.env.NEXT_PUBLIC_AI_MODEL || "gpt-4o-mini",
+      apiKey: process.env.NEXT_PUBLIC_AI_API_KEY || "",
+      baseUrl: process.env.NEXT_PUBLIC_AI_BASE_URL || "https://api.openai.com/v1",
+    }
+  })
+  const [modelPreset, setModelPreset] = useState("openai-gpt4o-mini")
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -252,6 +299,11 @@ export default function ChatPage() {
           action: "send",
           conversationId: convId,
           content,
+          // 传递模型配置，让用户可手动选择
+          modelProvider: modelConfig.provider,
+          modelName: modelConfig.model,
+          apiKey: modelConfig.apiKey || undefined,
+          baseUrl: modelConfig.baseUrl || undefined,
         }),
       })
       const json = await res.json()
@@ -410,15 +462,31 @@ export default function ChatPage() {
                     : "通用对话"}
                 </Badge>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground"
-                onClick={handleNewConversation}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                新建
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => setModelSettingsOpen(true)}
+                  title="模型设置"
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {modelConfig.provider === "mock"
+                    ? "Mock"
+                    : modelConfig.provider === "openai"
+                    ? "OpenAI"
+                    : "MiniMax"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={handleNewConversation}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  新建
+                </Button>
+              </div>
             </div>
 
             {/* 消息列表 */}
@@ -643,6 +711,122 @@ export default function ChatPage() {
               size="sm"
               onClick={() => setAgentSelectOpen(false)}
             >
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 模型设置对话框 ── */}
+      <Dialog open={modelSettingsOpen} onOpenChange={setModelSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              模型设置
+            </DialogTitle>
+            <DialogDescription>
+              选择 AI 模型并配置 API Key。设置后将在当前所有对话中生效。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* 预设选择 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">快速选择</label>
+              <div className="grid grid-cols-2 gap-2">
+                {MODEL_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`text-left p-2.5 rounded-lg border text-sm transition-colors ${
+                      modelPreset === opt.value
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "hover:bg-accent"
+                    }`}
+                    onClick={() => {
+                      setModelPreset(opt.value)
+                      const preset = MODEL_PRESETS[opt.value]
+                      if (preset) {
+                        setModelConfig((prev) => ({
+                          ...prev,
+                          provider: preset.provider,
+                          model: preset.model,
+                          // 切换provider时清空可能不兼容的key
+                          apiKey: "",
+                        }))
+                      }
+                    }}
+                  >
+                    <div className="text-xs font-medium truncate">{opt.label}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{opt.group}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 分隔线 */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">或手动配置</span>
+              </div>
+            </div>
+
+            {/* API Key 输入 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                API Key
+                <span className="text-xs text-muted-foreground ml-2">可选，留空使用 Mock 模式</span>
+              </label>
+              <Input
+                type="password"
+                placeholder="sk-... 或 minimax-..."
+                value={modelConfig.apiKey}
+                onChange={(e) =>
+                  setModelConfig((prev) => ({ ...prev, apiKey: e.target.value }))
+                }
+              />
+            </div>
+
+            {/* 自定义 Base URL */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                API Base URL
+                <span className="text-xs text-muted-foreground ml-2">可选</span>
+              </label>
+              <Input
+                placeholder="https://api.openai.com/v1"
+                value={modelConfig.baseUrl}
+                onChange={(e) =>
+                  setModelConfig((prev) => ({ ...prev, baseUrl: e.target.value }))
+                }
+              />
+            </div>
+
+            {/* 状态提示 */}
+            <div className="rounded-lg bg-muted p-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">当前状态：</span>
+                {modelConfig.apiKey ? (
+                  <span className="text-green-600">
+                    ✅ 已配置 API Key（{modelConfig.provider === "openai" ? "OpenAI" : "MiniMax"}）
+                  </span>
+                ) : (
+                  <span className="text-amber-600">
+                    ⚡ 未配置 Key，将使用 Mock 模式
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                模型：{modelConfig.model}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModelSettingsOpen(false)}>
               关闭
             </Button>
           </DialogFooter>
