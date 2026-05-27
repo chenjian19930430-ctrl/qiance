@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { Suspense, useState, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,14 @@ interface Message {
 }
 
 export default function AIChatPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <AIChatContent />
+    </Suspense>
+  )
+}
+
+function AIChatContent() {
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get("q") || ""
   const initialAgent = searchParams.get("agent") || ""
@@ -223,5 +231,17 @@ export default function AIChatPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AIChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+        <div className="text-muted-foreground">加载中...</div>
+      </div>
+    }>
+      <AIChatContent />
+    </Suspense>
   )
 }
