@@ -406,9 +406,10 @@ model Supplier {
   remark    String?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
-  contracts Contract[]
-  tenant    Tenant         @relation(fields: [tenantId], references: [id])
-  shops     SupplierShop[]
+  contracts    Contract[]
+  tenant       Tenant         @relation(fields: [tenantId], references: [id])
+  shops        SupplierShop[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([tenantId])
 }
@@ -442,6 +443,69 @@ model Contract {
 
   @@index([tenantId])
   @@index([supplierId])
+}
+
+model PurchaseOrder {
+  id          String          @id @default(cuid())
+  orderNo     String          @unique    // 采购单号：PO-YYYYMMDD-NNN
+  supplierId  String
+  supplier    Supplier        @relation(fields: [supplierId], references: [id])
+  status      Int             @default(0) // 0=草稿 1=待审核 2=已确认 3=部分入库 4=已完成 5=已取消
+  totalAmount Int             @default(0) // 采购总额（分）
+  paidAmount  Int             @default(0)
+  freight     Int             @default(0)
+  remark      String?
+  items       PurchaseOrderItem[]
+  creator     String?                    // 创建人
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model PurchaseOrderItem {
+  id            String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  spuId         String?
+  skuId         String?
+  spuName       String?                 // 商品名称（快照）
+  skuSpec       String?                 // SKU规格（快照）
+  quantity      Int                     // 采购数量
+  price         Int                     // 采购单价（分）
+  receivedQty   Int         @default(0) // 已入库数量
+  createdAt     DateTime    @default(now())
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  contact   String?
+  phone     String?
+  status    Int      @default(0)
+  tenantId  String   @default("default")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  stockItems StockItem[]
+}
+
+model StockItem {
+  id          String   @id @default(cuid())
+  spuId       String?
+  skuId       String?
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  quantity    Int      @default(0)
+  locked      Int      @default(0)      // 锁定库存（未发货订单占用）
+  threshold   Int      @default(10)     // 库存预警阈值
+
+  spuName     String?                   // 快照
+  skuSpec     String?                   // 快照
+  skuCode     String?
+  unit        String   @default("个")
+  tenantId    String   @default("default")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Dashboard {

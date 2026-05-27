@@ -304,9 +304,104 @@ async function main() {
     })
   }
 
+  // ========== 供应链种子数据 ==========
+
+  // 清空供应链表
+  await prisma.stockItem.deleteMany()
+  await prisma.purchaseOrderItem.deleteMany()
+  await prisma.purchaseOrder.deleteMany()
+  await prisma.warehouse.deleteMany()
+
+  // 1. 创建仓库
+  const warehouseMain = await prisma.warehouse.create({
+    data: { name: "主仓", code: "WH-MAIN", address: "厦门市思明区软件园二期", contact: "陈经理", phone: "0592-1234567", status: 0, tenantId: "default" },
+  })
+  const warehouseNorth = await prisma.warehouse.create({
+    data: { name: "华北仓", code: "WH-NORTH", address: "北京市大兴区", contact: "张经理", phone: "010-7654321", status: 0, tenantId: "default" },
+  })
+  console.log(`✅ 2个仓库已创建`)
+
+  // 2. 创建采购单
+  const allSuppliers = await prisma.supplier.findMany({ take: 5 })
+  const statuses = [0, 0, 1, 1, 2, 2, 3, 4, 4, 5]
+  const poData = [
+    { spuName: "纯棉T恤", spec: "白色-M", qty: 500, price: 2500 },
+    { spuName: "运动鞋", spec: "黑色-42", qty: 200, price: 8000 },
+    { spuName: "无线耳机", spec: "Pro版", qty: 100, price: 15000 },
+    { spuName: "手机壳", spec: "透明款", qty: 1000, price: 800 },
+    { spuName: "保温杯", spec: "500ml-白色", qty: 300, price: 3500 },
+    { spuName: "书包", spec: "蓝色", qty: 150, price: 8900 },
+    { spuName: "零食礼盒", spec: "端午限定", qty: 200, price: 12800 },
+    { spuName: "电脑包", spec: "15.6寸-黑色", qty: 80, price: 6500 },
+    { spuName: "防晒霜", spec: "SPF50-60ml", qty: 400, price: 3900 },
+    { spuName: "瑜伽垫", spec: "6mm-紫色", qty: 250, price: 2800 },
+  ]
+
+  for (let i = 0; i < 10; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - (10 - i))
+    const dateStr = d.toISOString().slice(0, 10).replace(/-/g, "")
+    const supplier = allSuppliers[i % allSuppliers.length]
+    if (!supplier) continue
+
+    const item = poData[i]
+    const totalAmount = item.qty * item.price
+    const receivedQty = [3, 4].includes(statuses[i]) ? item.qty : statuses[i] === 3 ? Math.floor(item.qty * 0.6) : 0
+
+    const order = await prisma.purchaseOrder.create({
+      data: {
+        orderNo: `PO-${dateStr}-${String(i + 1).padStart(3, "0")}`,
+        supplierId: supplier.id,
+        status: statuses[i],
+        totalAmount,
+        remark: `种子数据示例采购单 #${i + 1}`,
+        creator: "admin",
+        createdAt: d,
+        items: {
+          create: [{
+            spuName: item.spuName,
+            skuSpec: item.spec,
+            quantity: item.qty,
+            price: item.price,
+            receivedQty,
+          }],
+        },
+      },
+    })
+  }
+  console.log(`✅ 10条采购单已创建`)
+
+  // 3. 创建库存记录
+  const allSkus = await prisma.sku.findMany({ take: 30, include: { spu: true } })
+  const whIds = [warehouseMain.id, warehouseNorth.id]
+
+  for (let i = 0; i < 30 && i < allSkus.length; i++) {
+    const sku = allSkus[i]
+    const qty = Math.floor(Math.random() * 500) + 5
+    const threshold = [50, 30, 100, 20][Math.floor(Math.random() * 4)]
+    const specVal = sku.spec ? JSON.stringify(sku.spec) : null
+
+    await prisma.stockItem.create({
+      data: {
+        skuId: sku.id,
+        skuCode: sku.code,
+        spuName: sku.name,
+        skuSpec: specVal,
+        warehouseId: whIds[i % 2],
+        quantity: qty,
+        locked: Math.floor(qty * 0.05),
+        threshold,
+        unit: "个",
+        tenantId: "default",
+      },
+    })
+  }
+  console.log(`✅ 30条库存记录已创建`)
+
   console.log("🎉 种子数据播种完成！")
   console.log("   管理员账号: admin / admin123")
   console.log("   租户: 厦门重构艺数科技有限公司")
+  console.log("   供应链: 2仓库 + 10采购单 + 30库存项")
 }
 
 main()
