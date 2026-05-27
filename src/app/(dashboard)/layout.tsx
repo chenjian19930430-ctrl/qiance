@@ -47,7 +47,7 @@ const menuGroups = [
     label: "AI智能",
     items: [
       { href: "/ai/board", label: "AI全域看板", icon: LayoutDashboard },
-      { href: "/ai/agent", label: "全部智能体", icon: Bot },
+      { href: "/agents", label: "全部智能体(15个)", icon: Bot },
       { href: "/chat", label: "AI对话(新版)", icon: MessageSquare },
     ],
   },
