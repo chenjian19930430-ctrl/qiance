@@ -1,76 +1,66 @@
-# 千策（QianCe AI）
+# 千策（QianCe AI）- 电商AI智能体平台
 
-> 电商AI智能体运营平台
-> 厦门重构艺数科技有限公司
-
-对标 [企赋八爪鱼](https://bzy.aiqfwl.com/) 的全栈AI电商智能体平台。
+对标企赋八爪鱼电商AI智能体平台的全栈复刻项目。
 
 ## 技术栈
 
-- **前端**: Next.js 15 + shadcn/ui + Tailwind CSS 4
-- **后端**: Next.js API Routes + Prisma ORM + PostgreSQL
-- **AI**: Vercel AI SDK + OpenAI / MiniMax
-- **WebSocket**: Socket.IO
-- **认证**: NextAuth v5 + JWT
+- **前端**：Next.js 15 + TypeScript + Tailwind CSS 4 + shadcn/ui
+- **后端**：Next.js API Routes + Prisma ORM
+- **数据库**：PostgreSQL
+- **AI**：Vercel AI SDK + MiniMax / OpenAI
+- **实时通信**：Socket.IO
+- **认证**：NextAuth.js v5 (JWT)
+- **图表**：ECharts
 
 ## 快速开始
 
-### 前置条件
-
-- Node.js 20+
-- PostgreSQL 16+
-- npm 或 pnpm
-
-### 安装
-
 ```bash
-# 安装依赖
+# 1. 安装依赖
 npm install
 
-# 初始化数据库
-cp .env.local .env  # 修改DATABASE_URL为你的数据库地址
-npx prisma generate
-npx prisma db push
+# 2. 配置数据库（确保本地有PostgreSQL运行）
+cp .env.local .env
+# 修改 .env 中的 DATABASE_URL
 
-# 创建种子数据
-npm run db:seed
+# 3. 初始化数据库
+npx prisma migrate dev --name init
+npx prisma db seed
 
-# 启动开发服务器
+# 4. 启动开发服务器
 npm run dev
-# WebSocket服务器
-npm run socket
 ```
 
-### 默认管理员
-
-- 账号: admin
-- 密码: admin123
+开发服务器运行在 http://localhost:3000
 
 ## 项目结构
 
 ```
 qiance/
-├── prisma/                # 数据库模型和种子数据
-├── socket/                # WebSocket信令服务器
+├── prisma/                    # 数据模型与迁移
+│   └── schema.prisma          # Prisma Schema
 ├── src/
-│   ├── app/
-│   │   ├── (auth)/        # 登录/注册
-│   │   ├── (dashboard)/   # 主面板所有页面
-│   │   └── api/           # API Routes
-│   ├── components/        # 共享组件
-│   ├── lib/
-│   │   ├── agents/        # 15个智能体定义 + Router
-│   │   ├── ai.ts          # AI SDK配置
-│   │   ├── auth.ts        # 认证配置
-│   │   ├── prisma.ts      # 数据库客户端
-│   │   └── validations.ts # Zod校验
-│   └── types/             # 类型定义
-└── public/                # 静态资源
+│   ├── app/                   # Next.js App Router
+│   │   ├── (auth)/            # 登录/注册页面
+│   │   ├── (dashboard)/       # 主面板页面
+│   │   └── api/               # API Routes
+│   ├── components/            # UI组件
+│   ├── lib/                   # 工具库
+│   │   ├── auth.ts            # 认证配置
+│   │   ├── prisma.ts          # Prisma Client
+│   │   ├── agents/            # AI智能体
+│   │   └── validations.ts     # 表单验证
+│   └── types/                 # TypeScript类型
+└── socket/                    # WebSocket服务器
 ```
 
-## 智能体矩阵
+## Phase 1 功能
 
-- **商品管理**: 商品企划、智能选品、品类优化
-- **投流增长**: 利润预测、付费推广、流量预测、爆款预测
-- **财税管理**: 税务风险扫描、成本分析、营收分析、财务对账、利润分析、凭证生成、风险监测
-- **通用**: AI全能助理、千问百答
+- ✅ 用户注册/登录（密码 + 短信验证码）
+- ✅ RBAC 权限管理
+- ✅ AI对话界面（WebSocket通信）
+- ✅ 15个智能体Prompt + Agent Router
+- ✅ 公司/店铺/商品CRUD
+- ✅ SKU管理
+- ✅ 订单管理
+- ✅ ECharts Dashboard
+- ✅ 多租户支持

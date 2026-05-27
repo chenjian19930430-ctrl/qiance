@@ -1,72 +1,75 @@
-const { createServer } = require('http');
-const { Server } = require('socket.io');
+const { Server } = require("socket.io")
 
-const httpServer = createServer();
-const io = new Server(httpServer, {
-  cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    methods: ['GET', 'POST'],
-  },
-});
+/**
+ * Socket.IO 服务器
+ * 处理AI对话WebSocket通信
+ */
+function initSocketServer(httpServer) {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: process.env.FRONTEND_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
+    },
+  })
 
-io.on('connection', (socket) => {
-  console.log(`🔌 客户端已连接: ${socket.id}`);
+  // 认证中间件
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token
+    if (!token) {
+      return next(new Error("未提供认证token"))
+    }
 
-  // 加入对话房间
-  socket.on('join:conversation', (conversationId) => {
-    socket.join(`conv:${conversationId}`);
-    console.log(`  → 加入对话: ${conversationId}`);
-  });
+    try {
+      // 验证JWT token（简化版，正式版使用完整的JWT验证）
+      const jwt = require("jsonwebtoken")
+      const decoded = jwt.verify(token, process.env.AUTH_SECRET || "secret")
+      socket.user = decoded
+      next()
+    } catch (error) {
+      next(new Error("token验证失败"))
+    }
+  })
 
-  // 发送消息
-  socket.on('message:send', async (data) => {
-    const { conversationId, message, agentId } = data;
-    console.log(`  → 收到消息: [${agentId}] ${message}`);
+  io.on("connection", (socket) => {
+    console.log(`用户连接: ${socket.user?.userId || "unknown"}`)
 
-    // 模拟AI回复（流式）
-    const responses = {
-      'profit-predict': '根据您店铺的历史数据，近7天平均利润率为18.6%，环比增长2.3%。建议关注以下优化点：\n\n1️⃣ **成本优化**：物流成本占比偏高，可考虑优化配送方案\n2️⃣ **定价策略**：爆款商品建议维持当前定价，走量商品可尝试小幅提价\n3️⃣ **品类调整**：高毛利品类占比提升至40%以上',
-      'tax-risk': '根据您的财务状况，以下是需要关注的税务风险点：\n\n1. 📋 发票合规性检查（建议每月一次）\n2. 💰 进项税抵扣完整率：92%，尚有优化空间\n3. ⚠️ 跨年费用归集需注意截止时间\n4. ✅ 当前税务评级：B级，有提升至A级的潜力',
-      'default': '您好！我是您的AI电商助手。关于您的问题，我可以提供以下分析：\n\n从现有数据来看，建议您从以下几个方面着手：\n\n1. 🔍 **数据分析**：查看近30天的核心指标变化趋势\n2. 📊 **问题定位**：确定影响业务的关键因素\n3. 💡 **优化建议**：基于行业最佳实践给出可执行方案\n\n如需更具体的分析，请提供更多业务数据。',
-    };
+    // 加入用户的房间
+    if (socket.user?.userId) {
+      socket.join(`user:${socket.user.userId}`)
+    }
 
-    const response = responses[agentId] || responses['default'];
+    // 处理聊天消息
+    socket.on("chat:message", async (data) => {
+      try {
+        const { conversationId, message, agent } = data
 
-    // 模拟打字效果，逐字发送
-    const words = response.split('');
-    let index = 0;
-
-    const typing = setInterval(() => {
-      if (index < words.length) {
-        const chunk = words.slice(index, index + 3).join('');
-        socket.emit('message:chunk', {
+        // 这里会调用AI Agent Router + LLM
+        // 当前为演示版本，返回模拟回复
+        const response = {
+          type: "chat:response",
           conversationId,
-          chunk,
-          done: false,
-        });
-        index += 3;
-      } else {
-        clearInterval(typing);
-        socket.emit('message:chunk', {
-          conversationId,
-          chunk: '',
-          done: true,
-        });
+          content: `收到消息: "${message}"\n\n这是千策演示版的自动回复。正式版将集成AI模型进行分析。`,
+          agent: agent || "general",
+          timestamp: new Date().toISOString(),
+        }
+
+        // 分段返回（模拟流式效果）
+        socket.emit("chat:response", response)
+      } catch (error) {
+        socket.emit("chat:error", {
+          message: "处理消息时发生错误",
+          error: String(error),
+        })
       }
-    }, 30);
-  });
+    })
 
-  // 用户正在输入
-  socket.on('user:typing', (data) => {
-    socket.to(`conv:${data.conversationId}`).emit('user:typing', data);
-  });
+    // 处理断开连接
+    socket.on("disconnect", () => {
+      console.log(`用户断开连接: ${socket.user?.userId || "unknown"}`)
+    })
+  })
 
-  socket.on('disconnect', () => {
-    console.log(`🔌 客户端断开: ${socket.id}`);
-  });
-});
+  return io
+}
 
-const PORT = process.env.SOCKET_PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`🔌 WebSocket 服务器运行在 :${PORT}`);
-});
+module.exports = { initSocketServer }

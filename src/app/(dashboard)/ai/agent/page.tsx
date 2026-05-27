@@ -1,75 +1,81 @@
-'use client';
+"use client"
 
-import { Bot, Package, TrendingUp, Shield, Search, Layers, Megaphone, BarChart3, Zap, Globe, Receipt, DollarSign, FileCheck, PieChart, FileText, Calculator } from 'lucide-react';
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { agents, agentGroups } from "@/lib/agents/agents"
+import { Bot, Search, MessageSquare } from "lucide-react"
+import { useState } from "react"
 
-const agents = [
-  { name: '商品信息采集助手', category: '商品管理', icon: Search, desc: '全网采集商品信息，自动填充属性' },
-  { name: '商品上架优化师', category: '商品管理', icon: Package, desc: 'AI优化标题、主图、详情页提升转化' },
-  { name: 'SKU/SPU管理专家', category: '商品管理', icon: Layers, desc: '自动化管理商品层级与分类结构' },
-  { name: '全域投流策略官', category: '投流增长', icon: Megaphone, desc: '制定跨平台广告投放策略' },
-  { name: '投放素材工厂', category: '投流增长', icon: BarChart3, desc: '批量生成图文/视频广告素材' },
-  { name: '智能出价引擎', category: '投流增长', icon: Zap, desc: '实时竞价优化，ROI最大化' },
-  { name: '达人分销助手', category: '投流增长', icon: Globe, desc: '匹配带货达人，管理分销链路' },
-  { name: '店铺运营管家', category: '投流增长', icon: TrendingUp, desc: '日常巡检、活动报名、数据监控' },
-  { name: '财务记账助手', category: '财税管理', icon: Receipt, desc: '自动记账、凭证生成、账务核对' },
-  { name: '营收分析报告', category: '财税管理', icon: DollarSign, desc: '多维度营收数据分析与报表输出' },
-  { name: '费用合规审查', category: '财税管理', icon: FileCheck, desc: '智能审查报销单、发票合规性' },
-  { name: '利润核算中心', category: '财税管理', icon: PieChart, desc: '自动分摊成本、计算单品利润' },
-  { name: '税务申报助手', category: '财税管理', icon: FileText, desc: '智能计算应缴税款，自动生成申报表' },
-  { name: '成本控制看板', category: '财税管理', icon: Calculator, desc: '实时监控成本异常，预警超支风险' },
-  { name: '税务风控专家', category: '财税管理', icon: Shield, desc: '检测税务风险点，提供合规建议' },
-];
+export default function AgentListPage() {
+  const router = useRouter()
+  const [search, setSearch] = useState("")
 
-const categoryColors: Record<string, string> = {
-  '商品管理': 'bg-emerald-500',
-  '投流增长': 'bg-blue-500',
-  '财税管理': 'bg-violet-500',
-};
+  const filtered = agents.filter(
+    (a) =>
+      a.name.includes(search) || a.description.includes(search) || a.keywords.some((k) => k.includes(search))
+  )
 
-export default function AiAgentPage() {
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">智能体列表</h1>
-        <p className="text-muted-foreground text-sm mt-1">全部智能体一览</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">全部智能体</h2>
+          <p className="text-muted-foreground">选择智能体开始AI对话</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-5 py-3 text-sm font-medium text-muted-foreground">智能体名称</th>
-              <th className="text-left px-5 py-3 text-sm font-medium text-muted-foreground">分类</th>
-              <th className="text-left px-5 py-3 text-sm font-medium text-muted-foreground">描述</th>
-              <th className="text-left px-5 py-3 text-sm font-medium text-muted-foreground">状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.map((agent) => {
-              const Icon = agent.icon;
-              return (
-                <tr key={agent.name} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-1.5 rounded-lg ${categoryColors[agent.category]} text-white`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <span className="font-medium text-sm">{agent.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">{agent.category}</span>
-                  </td>
-                  <td className="px-5 py-4 text-sm text-muted-foreground">{agent.desc}</td>
-                  <td className="px-5 py-4">
-                    <span className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-700">在线</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* 搜索 */}
+      <div className="relative w-full max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="搜索智能体..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10"
+        />
       </div>
+
+      {/* 分组展示 */}
+      {agentGroups.map((group) => {
+        const groupAgents = filtered.filter((a) => a.group === group.key)
+        if (groupAgents.length === 0) return null
+        return (
+          <div key={group.key}>
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              {group.label}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {groupAgents.map((agent) => (
+                <Card
+                  key={agent.code}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/ai/chat?agent=${agent.code}`)}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{agent.name}</CardTitle>
+                    <CardDescription className="text-xs line-clamp-2">
+                      {agent.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button variant="outline" size="sm" className="w-full">
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      开始对话
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      {filtered.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">未找到匹配的智能体</div>
+      )}
     </div>
-  );
+  )
 }

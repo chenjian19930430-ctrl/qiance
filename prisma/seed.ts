@@ -1,200 +1,319 @@
-import { PrismaClient } from '@prisma/client';
-import { hash } from 'bcryptjs';
+import { PrismaClient } from "@prisma/client"
+import bcrypt from "bcryptjs"
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 开始播种数据...');
+  console.log("🌱 开始播种种子数据...")
 
   // 1. 创建默认租户
   const tenant = await prisma.tenant.upsert({
-    where: { code: 'QIANCE_DEFAULT' },
+    where: { code: "DEFAULT" },
     update: {},
     create: {
-      name: '厦门重构艺数科技有限公司',
-      code: 'QIANCE_DEFAULT',
-      status: 0,
+      name: "厦门重构艺数科技有限公司",
+      code: "DEFAULT",
     },
-  });
-  console.log(`✅ 租户: ${tenant.name}`);
+  })
+  console.log(`✅ 租户: ${tenant.name}`)
 
-  // 2. 创建管理员角色
+  // 2. 创建超级管理员和角色
   const adminRole = await prisma.role.upsert({
-    where: { code: 'super_admin' },
+    where: { code: "admin" },
     update: {},
     create: {
-      name: '超级管理员',
-      code: 'super_admin',
+      name: "超级管理员",
+      code: "admin",
       tenantId: tenant.id,
-      status: 0,
+      sort: 0,
     },
-  });
-  console.log(`✅ 角色: ${adminRole.name}`);
+  })
 
-  // 3. 创建管理员用户
-  const hashedPassword = await hash('admin123', 10);
+  const staffRole = await prisma.role.upsert({
+    where: { code: "staff" },
+    update: {},
+    create: {
+      name: "普通员工",
+      code: "staff",
+      tenantId: tenant.id,
+      sort: 1,
+    },
+  })
+
+  const hashedPassword = await bcrypt.hash("admin123", 10)
   const admin = await prisma.user.upsert({
-    where: { phone: '18649627971' },
+    where: { username: "admin" },
     update: {},
     create: {
-      phone: '18649627971',
+      username: "admin",
       password: hashedPassword,
-      name: '管理员',
+      realName: "管理员",
       tenantId: tenant.id,
-      roleId: adminRole.id,
-      status: 0,
     },
-  });
-  console.log(`✅ 管理员: ${admin.name} (18649627971 / admin123)`);
+  })
 
-  // 4. 创建默认公司
-  const company = await prisma.company.upsert({
-    where: { code: 'QIANCE_DEFAULT_CO' },
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
     update: {},
-    create: {
-      name: '厦门重构艺数科技有限公司',
-      code: 'QIANCE_DEFAULT_CO',
-      tenantId: tenant.id,
-      status: 0,
-    },
-  });
-  console.log(`✅ 公司: ${company.name}`);
+    create: { userId: admin.id, roleId: adminRole.id },
+  })
+  console.log(`✅ 管理员: admin / admin123`)
 
-  // 5. 创建默认店铺
-  const shop = await prisma.shop.upsert({
-    where: { code: 'QIANCE_DEFAULT_SHOP' },
-    update: {},
-    create: {
-      name: '千策测试店铺',
-      code: 'QIANCE_DEFAULT_SHOP',
-      platform: '综合平台',
-      companyId: company.id,
-      tenantId: tenant.id,
-      status: 0,
-    },
-  });
-  console.log(`✅ 店铺: ${shop.name}`);
-
-  // 6. 创建测试类目
-  const category = await prisma.category.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
-      name: '测试类目',
-      tenantId: tenant.id,
-    },
-  });
-  console.log(`✅ 类目: ${category.name}`);
-
-  // 7. 创建200个测试SKU
-  const existingCount = await prisma.sku.count();
-  if (existingCount < 200) {
-    const skus = [];
-    for (let i = existingCount + 1; i <= 200; i++) {
-      const price = Math.floor(Math.random() * 80) + 59; // ¥59-¥138
-      const skuId = `JD-SKU-${String(i).padStart(5, '0')}`;
-      skus.push({
-        skuName: `2026测试商品-JD-${String(i).padStart(5, '0')}`,
-        skuId,
-        salePrice: price,
-        categoryName: '测试类目',
-        tenantId: tenant.id,
-      });
-    }
-
-    for (const sku of skus) {
-      await prisma.sku.create({ data: sku });
-    }
-    console.log(`✅ 新建 ${skus.length} 个SKU (共计 ${existingCount + skus.length} 个)`);
-  } else {
-    console.log(`✅ SKU已存在: ${existingCount} 个`);
-  }
-
-  // 8. 创建15个智能体（投流增长/商品管理/财税管理/通用）
+  // 3. 创建15个智能体
   const agents = [
-    // 商品管理
-    { name: 'AI商品企划', category: '商品管理', description: '智能分析市场趋势，制定商品企划策略', keywords: '商品企划,新品规划' },
-    { name: '智能选品', category: '商品管理', description: '数据驱动的智能选品决策支持', keywords: '智能选品,选品分析' },
-    { name: '品类优化', category: '商品管理', description: '优化商品类目结构，提升运营效率', keywords: '品类优化,类目调整' },
-    // 投流增长
-    { name: '利润预测', category: '投流增长', description: 'AI驱动利润预测，优化定价策略', keywords: '利润预测,盈利分析' },
-    { name: '付费推广', category: '投流增长', description: '智能投放策略，提升ROI', keywords: '付费推广,广告投放' },
-    { name: '流量预测', category: '投流增长', description: '预测流量趋势，把握营销时机', keywords: '流量预测,流量趋势' },
-    { name: '爆款预测', category: '投流增长', description: 'AI识别潜力爆款，抢占市场先机', keywords: '爆款预测,爆品分析' },
-    { name: '市场分析', category: '投流增长', description: '行业趋势洞察与竞争分析', keywords: '市场分析,行业趋势' },
-    // 财税管理
-    { name: '税务风险扫描', category: '财税管理', description: '全面扫描税务风险，保障合规经营', keywords: '税务风险,税务合规' },
-    { name: 'AI成本分析', category: '财税管理', description: '精细化成本核算，挖掘降本空间', keywords: '成本分析,成本核算' },
-    { name: '营收分析', category: '财税管理', description: '全方位营收透视，驱动增长决策', keywords: '营收分析,收入分析' },
-    { name: '财务对账', category: '财税管理', description: '智能对账，确保账实相符', keywords: '财务对账,对账分析' },
-    { name: '利润分析', category: '财税管理', description: '利润来源追踪，优化盈利结构', keywords: '利润分析,利润结构' },
-    { name: '凭证生成', category: '财税管理', description: '自动生成会计凭证，提升财务效率', keywords: '凭证生成,会计凭证' },
-    { name: '税费测算', category: '财税管理', description: '智能税费测算，提前规划税负', keywords: '税费测算,税务计算' },
-    // 通用
-    { name: 'AI全能助理', category: '通用', description: '通用AI助手，解答各类电商运营问题', keywords: '全能助理,ai助手' },
-    { name: '千问百答', category: '通用', description: '海量电商知识库，有问必答', keywords: '千问百答,电商知识' },
-  ];
+    {
+      code: "profit_predictor",
+      name: "利润预测智能体",
+      group: "finance",
+      description: "未来销量、成本、费用、利润自动预测、目标达成模拟",
+      prompt: `你是一位专业的电商利润预测分析师。你可以：
+1. 根据历史销售数据预测未来销量趋势
+2. 分析成本、费用结构并预测利润率
+3. 进行"如果...会怎样"的目标达成模拟
+请基于用户提供的店铺/商品数据进行分析。`,
+    },
+    {
+      code: "tax_risk_scanner",
+      name: "税务风险扫描智能体",
+      group: "finance",
+      description: "自动扫描收入申报/发票/税负率/三流一致风险",
+      prompt: `你是一位专业税务风险分析师。你可以扫描收入申报与发票差异风险，分析税负率是否合理，检查三流一致，生成整改方案。`,
+    },
+    {
+      code: "auto_reconciliation",
+      name: "自动对账智能体",
+      group: "finance",
+      description: "订单/回款/退款/平台费自动对账",
+      prompt: `你是一位财务对账专家。你可以自动处理订单金额与回款对账、退款对账、平台费对账，标记差异并生成调整建议。`,
+    },
+    {
+      code: "cashflow_predictor",
+      name: "现金流预测智能体",
+      group: "finance",
+      description: "7/30/90天现金流预测，缺口自动预警",
+      prompt: `你是电商现金流管理专家。可以预测现金流，识别资金缺口并预警，提供资金调度建议。`,
+    },
+    {
+      code: "tax_calculator",
+      name: "税费自动测算智能体",
+      group: "finance",
+      description: "增值税/企业所得税自动计算，生成申报表草稿",
+      prompt: `你是一位税务计算专家。可自动计税、生成申报草稿、提供筹划建议。`,
+    },
+    {
+      code: "roi_calculator",
+      name: "ROI保本智能体",
+      group: "growth",
+      description: "自动计算投流保本ROI，亏损自动预警",
+      prompt: `你是投流ROI分析师。计算保本ROI，分析差距，提供优化建议。`,
+    },
+    {
+      code: "budget_allocator",
+      name: "预算分配智能体",
+      group: "growth",
+      description: "自动把预算分给高ROI计划/商品",
+      prompt: `你是一位投流预算分配专家。基于ROI表现分配合适预算。`,
+    },
+    {
+      code: "creative_optimizer",
+      name: "人群素材优选智能体",
+      group: "growth",
+      description: "自动筛选高点击/高转化素材",
+      prompt: `你是投流素材优化专家。分析素材表现，筛选高转化素材。`,
+    },
+    {
+      code: "campaign_monitor",
+      name: "投流监控智能体",
+      group: "growth",
+      description: "亏损达阈值自动暂停计划",
+      prompt: `你是投流实时监控专家。监控消耗和ROI，达阈值暂停计划。`,
+    },
+    {
+      code: "organic_traffic_booster",
+      name: "自然流量提升智能体",
+      group: "growth",
+      description: "优化标题/关键词/SEO，提升自然流量",
+      prompt: `你是电商SEO专家。优化商品标题关键词，提高搜索权重。`,
+    },
+    {
+      code: "product_analyzer",
+      name: "商品效能分析智能体",
+      group: "product",
+      description: "SKU级别效能分析，识别畅销/滞销品",
+      prompt: `你是商品效能分析师。分析SKU的销量/利润/转化率，提供定价和促销建议。`,
+    },
+    {
+      code: "competitor_monitor",
+      name: "竞品监控智能体",
+      group: "product",
+      description: "竞品价格/销量监控，提供应对策略",
+      prompt: `你是竞品分析专家。分析竞品价格策略、销量趋势，提供应对策略。`,
+    },
+    {
+      code: "inventory_optimizer",
+      name: "库存优化智能体",
+      group: "product",
+      description: "库存周转/补货建议，呆滞库存预警",
+      prompt: `你是库存管理专家。分析周转率，识别呆滞库存，提供补货建议。`,
+    },
+    {
+      code: "data_analyst",
+      name: "数据分析智能体",
+      group: "general",
+      description: "自然语言查询数据，自动生成图表",
+      prompt: `你是电商数据分析师。理解自然语言查询，自动生成图表，提供数据洞察。`,
+    },
+    {
+      code: "ops_assistant",
+      name: "运营助手智能体",
+      group: "general",
+      description: "日常运营问题解答，活动策划建议",
+      prompt: `你是电商运营顾问。提供平台规则、活动策划、客服流程等方面的建议。`,
+    },
+  ]
 
-  let agentCount = 0;
-  for (const agentData of agents) {
-    const existing = await prisma.agent.findFirst({
-      where: { name: agentData.name },
-    });
-    if (!existing) {
-      await prisma.agent.create({
-        data: {
-          name: agentData.name,
-          category: agentData.category,
-          description: agentData.description,
-          keywords: agentData.keywords,
-          icon: 'Bot',
-          color: '#4F46E5',
-          promptTemplate: `你是一个${agentData.name}，${agentData.description}。请专业地回答用户的问题。`,
-          tenantId: tenant.id,
-          status: 0,
-          sort: 0,
-        },
-      });
-      agentCount++;
-    }
+  for (const agent of agents) {
+    await prisma.agent.upsert({
+      where: { code: agent.code },
+      update: {},
+      create: {
+        ...agent,
+        tenantId: tenant.id,
+        sort: 0,
+      },
+    })
   }
-  console.log(`✅ 新建 ${agentCount} 个智能体`);
+  console.log(`✅ 15个智能体已创建`)
 
-  // 9. 创建基础系统岗位
+  // 4. 创建测试数据
+  const company = await prisma.company.upsert({
+    where: { id: "test-company-001" },
+    update: {},
+    create: {
+      id: "test-company-001",
+      tenantId: tenant.id,
+      name: "测试公司",
+      code: "TEST_COM",
+      address: "福建省厦门市思明区",
+      phone: "0592-1234567",
+      contact: "陈经理",
+      status: 0,
+      creatorId: admin.id,
+    },
+  })
+
+  const shop = await prisma.shop.upsert({
+    where: { id: "test-shop-001" },
+    update: {},
+    create: {
+      id: "test-shop-001",
+      tenantId: tenant.id,
+      companyId: company.id,
+      name: "测试京东旗舰店A",
+      code: "JD_SHOP_A",
+      channel: "京东",
+      status: 0,
+      creatorId: admin.id,
+    },
+  })
+
+  const category = await prisma.category.upsert({
+    where: { id: "test-cat-001" },
+    update: {},
+    create: {
+      id: "test-cat-001",
+      tenantId: tenant.id,
+      name: "测试类目",
+      status: 0,
+    },
+  })
+
+  // 创建200条SKU测试数据
+  const skuCount = await prisma.sku.count()
+  if (skuCount === 0) {
+    const skus = []
+    for (let i = 1; i <= 200; i++) {
+      const spuId = `test-spu-${Math.ceil(i / 20)}`
+      // 确保SPU存在
+      await prisma.spu.upsert({
+        where: { id: spuId },
+        update: {},
+        create: {
+          id: spuId,
+          tenantId: tenant.id,
+          companyId: company.id,
+          categoryId: category.id,
+          name: `测试SPU-${Math.ceil(i / 20)}`,
+          code: `TEST_SPU_${Math.ceil(i / 20)}`,
+        },
+      })
+      skus.push({
+        tenantId: tenant.id,
+        spuId,
+        shopId: shop.id,
+        name: `测试SKU-${i}`,
+        code: `TEST_SKU_${String(i).padStart(3, "0")}`,
+        salePrice: Math.floor(Math.random() * 80) + 59,
+        costPrice: Math.floor(Math.random() * 40) + 20,
+        stock: Math.floor(Math.random() * 500) + 10,
+        status: 0,
+        spec: { color: ["红色", "蓝色", "白色"][i % 3], size: ["S", "M", "L", "XL"][i % 4] },
+      })
+    }
+    await prisma.sku.createMany({ data: skus })
+    console.log(`✅ 200条SKU测试数据已创建`)
+  }
+
+  // 创建部门
+  const depts = [
+    { name: "总经办", code: "CEO" },
+    { name: "技术部", code: "TECH" },
+    { name: "运营部", code: "OPS" },
+    { name: "财务部", code: "FINANCE" },
+  ]
+  for (const d of depts) {
+    await prisma.dept.upsert({
+      where: { id: `dept-${d.code}` },
+      update: {},
+      create: {
+        id: `dept-${d.code}`,
+        tenantId: tenant.id,
+        name: d.name,
+        code: d.code,
+      },
+    })
+  }
+
+  // 创建岗位
   const posts = [
-    { code: 'ceo', name: '董事长', sort: 1, level: 1, category: '管理' },
-    { code: 'se', name: '项目经理', sort: 2, level: 2, category: '管理' },
-    { code: 'hr', name: '人力资源', sort: 3, level: 3, category: '职能' },
-    { code: 'staff', name: '普通员工', sort: 4, level: 4, category: '职能' },
-  ];
-
-  let postCount = 0;
-  for (const postData of posts) {
-    const existing = await prisma.post.findFirst({
-      where: { code: postData.code },
-    });
-    if (!existing) {
-      await prisma.post.create({
-        data: {
-          ...postData,
-          tenantId: tenant.id,
-          status: 0,
-        },
-      });
-      postCount++;
-    }
+    { name: "CEO", code: "CEO" },
+    { name: "技术经理", code: "TECH_MGR" },
+    { name: "运营主管", code: "OPS_MGR" },
+    { name: "财务主管", code: "FIN_MGR" },
+    { name: "员工", code: "STAFF" },
+  ]
+  for (const p of posts) {
+    await prisma.post.upsert({
+      where: { code: p.code },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        name: p.name,
+        code: p.code,
+      },
+    })
   }
-  console.log(`✅ 新建 ${postCount} 个岗位`);
 
-  console.log('\n🎉 数据播种完成!');
-  console.log('📱 管理账号: 18649627971 / admin123');
+  console.log("🎉 种子数据播种完成！")
+  console.log("   管理员账号: admin / admin123")
+  console.log("   租户: 厦门重构艺数科技有限公司")
 }
 
 main()
   .catch((e) => {
-    console.error('播种失败:', e);
-    process.exit(1);
+    console.error(e)
+    process.exit(1)
   })
   .finally(async () => {
-    await prisma.$disconnect();
-  });
+    await prisma.$disconnect()
+  })

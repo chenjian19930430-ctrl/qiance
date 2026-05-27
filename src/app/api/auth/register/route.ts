@@ -1,54 +1,78 @@
-import { hash } from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
-import { apiSuccess, apiError } from '@/lib/utils';
+import { NextResponse } from "next/server"
+import bcrypt from "bcryptjs"
+import { prisma } from "@/lib/prisma"
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const { phone, password, companyName, name } = await request.json();
+    const body = await req.json()
+    const { username, password, phone } = body
 
-    if (!phone || !password || !companyName || !name) {
-      return apiError('缺少必要参数');
-    }
-
-    // 查重
-    const existing = await prisma.user.findUnique({ where: { phone } });
+    // 检查用户是否已存在
+    const existing = await prisma.user.findUnique({
+      where: { username },
+    })
     if (existing) {
-      return apiError('手机号已注册');
+      return NextResponse.json(
+        { code: 400, data: null, message: "用户名已存在" },
+        { status: 400 }
+      )
     }
 
-    const hashedPassword = await hash(password, 10);
-
-    // 创建租户
-    const tenant = await prisma.tenant.create({
-      data: {
-        name: companyName,
-        code: `TENANT_${Date.now()}`,
-      },
-    });
-
-    // 创建默认管理员角色
-    const role = await prisma.role.create({
-      data: {
-        name: '管理员',
-        code: 'admin',
-        tenantId: tenant.id,
-      },
-    });
+    // 获取默认租户（或创建新租户）
+    let tenant = await prisma.tenant.findFirst({
+      where: { code: "DEFAULT" },
+    })
+    if (!tenant) {
+      tenant = await prisma.tenant.create({
+        data: {
+          name: "默认租户",
+          code: "DEFAULT",
+        },
+      })
+    }
 
     // 创建用户
+    const hashedPassword = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
       data: {
-        phone,
+        username,
         password: hashedPassword,
-        name,
+        phone,
+        realName: username,
         tenantId: tenant.id,
-        roleId: role.id,
       },
-    });
+    })
 
-    return apiSuccess({ userId: user.id }, '注册成功');
+    // 分配默认角色
+    let defaultRole = await prisma.role.findFirst({
+      where: { code: "staff", tenantId: tenant.id },
+    })
+    if (!defaultRole) {
+      defaultRole = await prisma.role.create({
+        data: {
+          name: "普通员工",
+          code: "staff",
+          tenantId: tenant.id,
+        },
+      })
+    }
+    await prisma.userRole.create({
+      data: {
+        userId: user.id,
+        roleId: defaultRole.id,
+      },
+    })
+
+    return NextResponse.json({
+      code: 200,
+      data: { id: user.id, username: user.username },
+      message: "注册成功",
+    })
   } catch (error) {
-    console.error('注册失败:', error);
-    return apiError('注册失败');
+    console.error("Register error:", error)
+    return NextResponse.json(
+      { code: 500, data: null, message: "注册失败" },
+      { status: 500 }
+    )
   }
 }

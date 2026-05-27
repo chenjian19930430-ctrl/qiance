@@ -1,33 +1,38 @@
-import { prisma } from '@/lib/prisma';
-import { apiSuccess, apiList, apiError } from '@/lib/utils';
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
-export async function GET(request: Request) {
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const pageNum = parseInt(searchParams.get('pageNum') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const pageSize = parseInt(searchParams.get("pageSize") || "20")
 
-    const [rows, total] = await Promise.all([
+    const [list, total] = await Promise.all([
       prisma.shop.findMany({
-        skip: (pageNum - 1) * pageSize,
+        include: { company: true },
+        skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       prisma.shop.count(),
-    ]);
+    ])
 
-    return apiList(rows, total, pageNum, pageSize);
+    return NextResponse.json({
+      code: 200,
+      data: { list, total, page, pageSize },
+      message: "success",
+    })
   } catch (error) {
-    return apiError('查询失败');
+    return NextResponse.json({ code: 500, data: null, message: "查询失败" }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const shop = await prisma.shop.create({ data: body });
-    return apiSuccess(shop, '创建成功');
+    const body = await req.json()
+    const shop = await prisma.shop.create({ data: body })
+    return NextResponse.json({ code: 200, data: shop, message: "创建成功" })
   } catch (error) {
-    return apiError('创建失败');
+    return NextResponse.json({ code: 500, data: null, message: "创建失败" }, { status: 500 })
   }
 }
