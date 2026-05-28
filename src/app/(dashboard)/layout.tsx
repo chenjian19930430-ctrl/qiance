@@ -30,6 +30,9 @@ import {
   Search,
   Globe,
   Eye,
+  Smartphone,
+  ShoppingBag,
+  Video,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -69,6 +72,10 @@ const menuGroups = [
     items: [
       { href: "/company", label: "公司管理", icon: Building },
       { href: "/shop", label: "店铺管理", icon: Store },
+      { href: "/shop/douyin", label: "抖店管理", icon: ShoppingBag },
+      { href: "/shop/weixin", label: "视频号管理", icon: Smartphone },
+      { href: "/shop/taobao", label: "淘宝店铺", icon: ShoppingCart },
+      { href: "/shop/kuaishou", label: "快手店铺", icon: Video },
       { href: "/goods/spu", label: "SPU管理", icon: Package },
       { href: "/goods/sku", label: "SKU管理", icon: Package },
       { href: "/goods/category", label: "商品分类", icon: Files },

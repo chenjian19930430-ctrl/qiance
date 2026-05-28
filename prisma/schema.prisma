@@ -360,6 +360,21 @@ model ChatMessage {
   @@index([createdAt])
 }
 
+model WeixinShop {
+  id            String    @id @default(cuid())
+  tenantId      String
+  shopName      String
+  shopId        String    @unique       // 视频号分配的店铺ID
+  appId         String?                 // 微信AppID
+  accessToken   String?                 // OAuth token
+  refreshToken  String?
+  tokenExpire   DateTime?
+  authStatus    Int       @default(0)   // 0=未授权 1=已授权 2=已过期
+  lastSyncTime  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model DouyinShop {
   id            String    @id @default(cuid())
   tenantId      String

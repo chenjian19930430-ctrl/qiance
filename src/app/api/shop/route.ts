@@ -6,15 +6,22 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get("page") || "1")
     const pageSize = parseInt(searchParams.get("pageSize") || "20")
+    const platform = searchParams.get("platform") || ""
+    const search = searchParams.get("search") || ""
+
+    const where: Record<string, unknown> = {}
+    if (platform) where.platform = platform
+    if (search) where.name = { contains: search }
 
     const [list, total] = await Promise.all([
       prisma.shop.findMany({
+        where,
         include: { company: true },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
-      prisma.shop.count(),
+      prisma.shop.count({ where }),
     ])
 
     return NextResponse.json({
